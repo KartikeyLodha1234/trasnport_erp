@@ -1,0 +1,345 @@
+/* ==========================================================================
+   1. GLOBAL & RESET STYLES
+   ========================================================================== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+body {
+  background-color: #030712 !important; /* पूरा बैकग्राउंड गहरा डार्क रहेगा */
+  color: #fcfcfcd0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ==========================================================================
+   2. MAIN PANEL LAYOUT (Navbar + Sidebar + Content Area)
+   ========================================================================== */
+.app-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #030712;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  position: relative;
+  width: 100%;
+  background-color: #030712;
+}
+
+/* कंटेंट एरिया फिक्स - यहाँ से #ffffff पूरी तरह हटा दिया गया है */
+.content-area {
+  flex: 1;
+  margin-left: 260px; /* डेस्कटॉप पर साइडबार के बगल में स्पेस */
+  padding: 30px;
+  background-color: #f8f8f8 !important; /* डार्क कलर फिक्स */
+  min-height: calc(100vh - 70px);
+  transition: margin-left 0.3s ease, padding 0.3s ease;
+}
+
+/* ==========================================================================
+   3. LOGIN PAGE STYLES
+   ========================================================================== */
+.login-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #070b19 0%, #030712 100%);
+  padding: 1.5rem;
+}
+
+.login-card {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-radius: 2rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  padding: 2.5rem 2.2rem;
+  max-width: 420px;
+  width: 100%;
+  transition: transform 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.login-card:hover {
+  transform: translateY(-4px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.8rem;
+}
+
+.brand i {
+  font-size: 2.4rem;
+  color: #3b82f6;
+  background: rgba(37, 99, 235, 0.1);
+  padding: 0.5rem;
+  border-radius: 1.2rem;
+}
+
+.brand h2 {
+  font-weight: 600;
+  font-size: 1.9rem;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.welcome-text {
+  margin-bottom: 2rem;
+}
+
+.welcome-text h1 {
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.welcome-text p {
+  color: #94a3b8;
+  font-size: 0.95rem;
+  margin-top: 0.3rem;
+  font-weight: 400;
+}
+
+.input-group {
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+
+.input-group label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: #0f172a;
+  border-radius: 1rem;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  border: 1.5px solid rgba(255, 255, 255, 0.05);
+}
+
+.input-wrapper:focus-within {
+  border-color: #2563eb;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.input-wrapper i {
+  position: absolute;
+  left: 1rem;
+  color: #64748b;
+  font-size: 1rem;
+  pointer-events: none;
+  transition: color 0.2s;
+}
+
+.input-wrapper:focus-within i {
+  color: #2563eb;
+}
+
+.input-wrapper input {
+  width: 100%;
+  padding: 0.9rem 1rem 0.9rem 2.8rem;
+  border: none;
+  background: transparent;
+  font-size: 0.95rem;
+  color: #ffffff;
+  outline: none;
+}
+
+.input-wrapper input::placeholder {
+  color: #475569;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 1rem;
+  outline: none;
+}
+
+.toggle-password:hover {
+  color: #ffffff;
+}
+
+.options-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.5rem 0 1.8rem 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #94a3b8;
+}
+
+.remember-me input[type="checkbox"] {
+  accent-color: #2563eb;
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.forgot-link {
+  font-size: 0.9rem;
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot-link:hover {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+.login-btn {
+  width: 100%;
+  padding: 0.9rem 1.5rem;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.login-btn:hover {
+  background: #1d4ed8;
+}
+
+.login-btn:active {
+  transform: scale(0.98);
+}
+
+.signup-cta {
+  text-align: center;
+  margin-top: 1.8rem;
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.signup-cta a {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.signup-cta a:hover {
+  text-decoration: underline;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0 1rem 0;
+  color: #475569;
+  font-size: 0.8rem;
+}
+
+.divider hr {
+  flex: 1;
+  border: none;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.social-login {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.social-btn {
+  background: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 1rem;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+}
+
+.social-btn:hover {
+  background: #1e293b;
+}
+
+.demo-note {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #475569;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 1.2rem;
+}
+
+.demo-note span {
+  background: #0f172a;
+  padding: 0.2rem 0.8rem;
+  border-radius: 20px;
+  color: #94a3b8;
+}
+
+/* ==========================================================================
+   4. STRICT MOBILE & TABLET RESPONSIVE REPAIR (1024px and below)
+   ========================================================================== */
+@media (max-width: 1024px) {
+  /* साइडबार स्पेस हटा देता है ताकि मोबाइल व्यू में कंटेंट पूरा स्क्रीन ले */
+  .content-area {
+    margin-left: 0 !important; 
+    padding: 20px 16px !important;
+    width: 100%;
+  }
+
+  .login-card {
+    padding: 2rem 1.5rem;
+    border-radius: 1.5rem;
+  }
+
+  .brand h2 {
+    font-size: 1.6rem;
+  }
+
+  /* मोबाइल पर ग्रिड कार्ड्स को एक के नीचे एक अलाइन करने के लिए */
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
+  }
+  
+}
