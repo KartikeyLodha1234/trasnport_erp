@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Jul 06, 2026 at 12:59 PM
+-- Generation Time: Jul 06, 2026 at 01:40 PM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.30
 
@@ -20,6 +20,113 @@ SET time_zone = "+00:00";
 --
 -- Database: `logistics_db`
 --
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admins`
+--
+
+CREATE TABLE `admins` (
+  `id` int NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `full_name` varchar(100) NOT NULL,
+  `phone` varchar(15) DEFAULT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `profile_picture` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `last_login` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `admins`
+--
+
+INSERT INTO `admins` (`id`, `email`, `full_name`, `phone`, `password_hash`, `profile_picture`, `is_active`, `last_login`, `created_at`, `updated_at`) VALUES
+(1, 'admin@transporterp.com', 'Updated Admin Name', '9876543212', '$2a$10$NewHashedPassword', '/uploads/admin-profile.jpg', 0, '2026-07-06 13:16:17', '2026-07-06 13:16:17', '2026-07-06 13:16:17'),
+(2, 'manager@transporterp.com', 'Manager User', '9876543211', '$2a$10$YourHashedPasswordHere', NULL, 1, NULL, '2026-07-06 13:16:17', '2026-07-06 13:16:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_activities`
+--
+
+CREATE TABLE `admin_activities` (
+  `id` int NOT NULL,
+  `admin_id` int NOT NULL,
+  `activity_type` enum('login','logout','profile_update','password_change','login_failed') NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `details` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `admin_activities`
+--
+
+INSERT INTO `admin_activities` (`id`, `admin_id`, `activity_type`, `ip_address`, `user_agent`, `details`, `created_at`) VALUES
+(1, 1, 'login', '192.168.1.1', 'Mozilla/5.0...', '{\"login_time\": \"2026-07-06 18:46:17.000000\"}', '2026-07-06 13:16:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_password_resets`
+--
+
+CREATE TABLE `admin_password_resets` (
+  `id` int NOT NULL,
+  `admin_id` int NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `expires_at` timestamp NOT NULL,
+  `used` tinyint(1) DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `admin_password_resets`
+--
+
+INSERT INTO `admin_password_resets` (`id`, `admin_id`, `token`, `expires_at`, `used`, `created_at`) VALUES
+(1, 1, 'reset_token_here', '2026-07-06 14:16:17', 1, '2026-07-06 13:16:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_sessions`
+--
+
+CREATE TABLE `admin_sessions` (
+  `id` int NOT NULL,
+  `admin_id` int NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `expires_at` timestamp NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `admin_sessions`
+--
+
+INSERT INTO `admin_sessions` (`id`, `admin_id`, `token`, `ip_address`, `user_agent`, `expires_at`, `created_at`) VALUES
+(1, 1, 'session_token_here', '192.168.1.1', 'Mozilla/5.0...', '2026-07-13 13:16:17', '2026-07-06 13:16:17');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `admin_wallet`
+--
+
+CREATE TABLE `admin_wallet` (
+  `id` int NOT NULL,
+  `balance` decimal(10,2) NOT NULL DEFAULT '0.00',
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -218,6 +325,21 @@ INSERT INTO `operators` (`operator_id`, `username`, `email`, `password_hash`, `r
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `password_reset_tokens`
+--
+
+CREATE TABLE `password_reset_tokens` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `expires_at` timestamp NOT NULL,
+  `used` tinyint(1) DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `payments`
 --
 
@@ -356,6 +478,66 @@ INSERT INTO `transactions` (`id`, `transaction_id`, `user_id`, `driver_id`, `shi
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `users`
+--
+
+CREATE TABLE `users` (
+  `id` int NOT NULL,
+  `email` varchar(100) NOT NULL,
+  `full_name` varchar(100) NOT NULL,
+  `role` enum('super_admin','admin','manager','driver','user') DEFAULT 'user',
+  `phone` varchar(15) DEFAULT NULL,
+  `password_hash` varchar(255) NOT NULL,
+  `profile_picture` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) DEFAULT '1',
+  `email_verified` tinyint(1) DEFAULT '0',
+  `last_login` timestamp NULL DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`id`, `email`, `full_name`, `role`, `phone`, `password_hash`, `profile_picture`, `is_active`, `email_verified`, `last_login`, `created_at`, `updated_at`) VALUES
+(1, 'admin@transporterp.com', 'Admin User', 'super_admin', NULL, '$2a$10$YourHashedPasswordHere', NULL, 1, 1, NULL, '2026-07-06 13:15:33', '2026-07-06 13:15:33');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_activities`
+--
+
+CREATE TABLE `user_activities` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `activity_type` enum('login','logout','profile_update','password_change','login_failed') NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `details` json DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_sessions`
+--
+
+CREATE TABLE `user_sessions` (
+  `id` int NOT NULL,
+  `user_id` int NOT NULL,
+  `token` varchar(255) NOT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text,
+  `expires_at` timestamp NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `vehicles`
 --
 
@@ -383,6 +565,49 @@ INSERT INTO `vehicles` (`id`, `vehicle_id`, `type`, `company_name`, `year`, `lic
 --
 -- Indexes for dumped tables
 --
+
+--
+-- Indexes for table `admins`
+--
+ALTER TABLE `admins`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD KEY `idx_email` (`email`),
+  ADD KEY `idx_is_active` (`is_active`);
+
+--
+-- Indexes for table `admin_activities`
+--
+ALTER TABLE `admin_activities`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_admin_id` (`admin_id`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
+-- Indexes for table `admin_password_resets`
+--
+ALTER TABLE `admin_password_resets`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `idx_token` (`token`),
+  ADD KEY `idx_admin_id` (`admin_id`),
+  ADD KEY `idx_expires_at` (`expires_at`);
+
+--
+-- Indexes for table `admin_sessions`
+--
+ALTER TABLE `admin_sessions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `idx_token` (`token`),
+  ADD KEY `idx_admin_id` (`admin_id`),
+  ADD KEY `idx_expires_at` (`expires_at`);
+
+--
+-- Indexes for table `admin_wallet`
+--
+ALTER TABLE `admin_wallet`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `city`
@@ -437,6 +662,16 @@ ALTER TABLE `operators`
   ADD UNIQUE KEY `email` (`email`);
 
 --
+-- Indexes for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `idx_token` (`token`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_expires_at` (`expires_at`);
+
+--
 -- Indexes for table `payments`
 --
 ALTER TABLE `payments`
@@ -472,6 +707,35 @@ ALTER TABLE `transactions`
   ADD KEY `idx_created_at` (`created_at`);
 
 --
+-- Indexes for table `users`
+--
+ALTER TABLE `users`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `email` (`email`),
+  ADD KEY `idx_email` (`email`),
+  ADD KEY `idx_role` (`role`),
+  ADD KEY `idx_is_active` (`is_active`);
+
+--
+-- Indexes for table `user_activities`
+--
+ALTER TABLE `user_activities`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_activity_type` (`activity_type`),
+  ADD KEY `idx_created_at` (`created_at`);
+
+--
+-- Indexes for table `user_sessions`
+--
+ALTER TABLE `user_sessions`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `token` (`token`),
+  ADD KEY `idx_token` (`token`),
+  ADD KEY `idx_user_id` (`user_id`),
+  ADD KEY `idx_expires_at` (`expires_at`);
+
+--
 -- Indexes for table `vehicles`
 --
 ALTER TABLE `vehicles`
@@ -480,6 +744,36 @@ ALTER TABLE `vehicles`
 --
 -- AUTO_INCREMENT for dumped tables
 --
+
+--
+-- AUTO_INCREMENT for table `admins`
+--
+ALTER TABLE `admins`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
+-- AUTO_INCREMENT for table `admin_activities`
+--
+ALTER TABLE `admin_activities`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `admin_password_resets`
+--
+ALTER TABLE `admin_password_resets`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `admin_sessions`
+--
+ALTER TABLE `admin_sessions`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `admin_wallet`
+--
+ALTER TABLE `admin_wallet`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `city`
@@ -524,6 +818,12 @@ ALTER TABLE `operators`
   MODIFY `operator_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
@@ -548,6 +848,24 @@ ALTER TABLE `transactions`
   MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
+-- AUTO_INCREMENT for table `users`
+--
+ALTER TABLE `users`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
+-- AUTO_INCREMENT for table `user_activities`
+--
+ALTER TABLE `user_activities`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `user_sessions`
+--
+ALTER TABLE `user_sessions`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+
+--
 -- AUTO_INCREMENT for table `vehicles`
 --
 ALTER TABLE `vehicles`
@@ -558,10 +876,34 @@ ALTER TABLE `vehicles`
 --
 
 --
+-- Constraints for table `admin_activities`
+--
+ALTER TABLE `admin_activities`
+  ADD CONSTRAINT `admin_activities_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `admins` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `admin_password_resets`
+--
+ALTER TABLE `admin_password_resets`
+  ADD CONSTRAINT `admin_password_resets_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `admins` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `admin_sessions`
+--
+ALTER TABLE `admin_sessions`
+  ADD CONSTRAINT `admin_sessions_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `admins` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `maintenance_logs`
 --
 ALTER TABLE `maintenance_logs`
   ADD CONSTRAINT `maintenance_logs_ibfk_1` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `password_reset_tokens`
+--
+ALTER TABLE `password_reset_tokens`
+  ADD CONSTRAINT `password_reset_tokens_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `payments`
@@ -583,6 +925,18 @@ ALTER TABLE `shipments`
 ALTER TABLE `transactions`
   ADD CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`driver_id`) REFERENCES `drivers` (`id`) ON DELETE SET NULL,
   ADD CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`shipment_id`) REFERENCES `shipments` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `user_activities`
+--
+ALTER TABLE `user_activities`
+  ADD CONSTRAINT `user_activities_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `user_sessions`
+--
+ALTER TABLE `user_sessions`
+  ADD CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

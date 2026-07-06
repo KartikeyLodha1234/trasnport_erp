@@ -316,14 +316,7 @@ const Profile = () => {
                 />
                 {errors.currentPassword && <ErrorMessage>{errors.currentPassword}</ErrorMessage>}
               </FormGroup>
-              <FormGroup>
-                {/* Empty space for alignment */}
-              </FormGroup>
-            </Row>
-
-            {/* Row 4: New Password & Confirm Password */}
-            <Row columns="1fr 1fr">
-              <FormGroup>
+                 <FormGroup>
                 <Label>
                   New Password
                 </Label>
@@ -336,6 +329,11 @@ const Profile = () => {
                 />
                 {errors.newPassword && <ErrorMessage>{errors.newPassword}</ErrorMessage>}
               </FormGroup>
+            </Row>
+
+            {/* Row 4: New Password & Confirm Password */}
+            <Row columns="1fr 1fr">
+           
               <FormGroup>
                 <Label>
                   Confirm New Password
