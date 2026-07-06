@@ -29,6 +29,7 @@ import CompanySettings from "../web/src/pages/admin/settings/CompanySettings.jsx
 import AdminWallet from "../web/src/pages/admin/wallet/wallet.jsx";
 import Transactions from "../web/src/pages/admin/transactions/Transactions.jsx";
 import Cities from "../web/src/pages/admin/routes/city.jsx";
+import BookingHistory from "../web/src/pages/admin/booking/bookinghistory.jsx";
 
 // ===== STYLED COMPONENTS =====
 const LayoutWrapper = styled.div`
@@ -90,7 +91,7 @@ function App() {
         <Route path="/shipments/track" element={ProtectedRouteWithLayout(Track)} />
         <Route 
           path="/shipments/history" 
-          element={ProtectedRouteWithLayout(() => <div>Booking History Page</div>)} 
+          element={ProtectedRouteWithLayout(BookingHistory)} 
         />
 
         {/* Delivery Routes */}
