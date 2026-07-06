@@ -1,125 +1,222 @@
-// ClientsPage.jsx
-import React, { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Plus, 
-  MoreVertical, 
-  Eye, 
-  Edit, 
+import React, { useState } from 'react';
+import {
+  Search,
+  Filter,
+  Plus,
+  MoreVertical,
+  Eye,
+  Edit,
   Trash2,
   Users,
   CheckCircle,
   Clock,
-  AlertCircle
+  AlertCircle,
+  X,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  UserPlus,
+  Mail,
+  Phone,
+  Building2,
+  Truck,
+  Calendar,
+  DollarSign,
+  FileText,
 } from 'lucide-react';
 
+// --- Sample Data ---
+const sampleClients = [
+  {
+    _id: 1,
+    company: 'ABC Logistics',
+    email: 'info@abclogistics.com',
+    contactPerson: 'John Smith',
+    phone: '+1 234 567 8900',
+    vehicleCount: 12,
+    status: 'active',
+    joined: '2025-01-15',
+    totalSpent: 284500,
+    contracts: 3,
+  },
+  {
+    _id: 2,
+    company: 'City Express',
+    email: 'contact@cityexpress.com',
+    contactPerson: 'Sarah Johnson',
+    phone: '+1 234 567 8901',
+    vehicleCount: 8,
+    status: 'pending',
+    joined: '2025-03-20',
+    totalSpent: 127800,
+    contracts: 2,
+  },
+  {
+    _id: 3,
+    company: 'QuickShip Solutions',
+    email: 'support@quickship.com',
+    contactPerson: 'Mike Wilson',
+    phone: '+1 234 567 8902',
+    vehicleCount: 5,
+    status: 'inactive',
+    joined: '2024-11-02',
+    totalSpent: 45600,
+    contracts: 1,
+  },
+  {
+    _id: 4,
+    company: 'Global Freight Inc',
+    email: 'operations@globalfreight.com',
+    contactPerson: 'Emily Davis',
+    phone: '+1 234 567 8903',
+    vehicleCount: 22,
+    status: 'active',
+    joined: '2025-02-10',
+    totalSpent: 623400,
+    contracts: 5,
+  },
+  {
+    _id: 5,
+    company: 'Metro Transport',
+    email: 'dispatch@metrotransport.com',
+    contactPerson: 'Robert Brown',
+    phone: '+1 234 567 8904',
+    vehicleCount: 4,
+    status: 'pending',
+    joined: '2025-05-05',
+    totalSpent: 23400,
+    contracts: 1,
+  },
+];
+
+const statusColors = {
+  active: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
+  pending: { bg: 'bg-amber-100', text: 'text-amber-700', dot: 'bg-amber-500' },
+  inactive: { bg: 'bg-rose-100', text: 'text-rose-700', dot: 'bg-rose-500' },
+};
+
+const statusLabels = {
+  active: 'Active',
+  pending: 'Pending',
+  inactive: 'Inactive',
+};
+
+// --- Main Component ---
 const ClientsPage = () => {
-  const [clients, setClients] = useState([
-    // Sample data - replace with API call
-    {
-      _id: 1,
-      company: 'ABC Logistics',
-      email: 'info@abclogistics.com',
-      contactPerson: 'John Smith',
-      vehicleCount: 12,
-      status: 'active'
-    },
-    {
-      _id: 2,
-      company: 'City Express',
-      email: 'contact@cityexpress.com',
-      contactPerson: 'Sarah Johnson',
-      vehicleCount: 8,
-      status: 'pending'
-    },
-    {
-      _id: 3,
-      company: 'QuickShip Solutions',
-      email: 'support@quickship.com',
-      contactPerson: 'Mike Wilson',
-      vehicleCount: 5,
-      status: 'inactive'
-    }
-  ]);
-  
+  const [clients, setClients] = useState(sampleClients);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [loading, setLoading] = useState(false);
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
-  // Stats Cards Data
+  // Stats
   const stats = [
-    {
-      title: 'Total Clients',
-      value: '247',
-      icon: Users,
-      color: '#3B82F6'
-    },
+    { title: 'Total Clients', value: clients.length, icon: Users, color: '#3B82F6' },
     {
       title: 'Active Contracts',
-      value: '189',
+      value: clients.reduce((acc, c) => acc + c.contracts, 0),
       icon: CheckCircle,
-      color: '#10B981'
+      color: '#10B981',
     },
     {
       title: 'Pending Invoices',
-      value: '34',
+      value: clients.filter((c) => c.status === 'pending').length * 2,
       icon: Clock,
-      color: '#F59E0B'
+      color: '#F59E0B',
     },
     {
       title: 'Issues',
-      value: '12',
+      value: clients.filter((c) => c.status === 'inactive').length,
       icon: AlertCircle,
-      color: '#EF4444'
-    }
+      color: '#EF4444',
+    },
   ];
 
-  // Filter clients based on search and status
-  const filteredClients = clients.filter(client => {
-    const matchesSearch = client.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          client.contactPerson.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter clients
+  const filteredClients = clients.filter((client) => {
+    const matchesSearch =
+      client.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      client.phone.includes(searchTerm);
     const matchesStatus = filterStatus === 'all' || client.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
+  // Handlers
+  const handleDelete = (id) => {
+    setClients(clients.filter((c) => c._id !== id));
+    setShowDeleteConfirm(null);
+  };
+
+  const handleAddClient = (newClient) => {
+    const newId = Math.max(...clients.map((c) => c._id)) + 1;
+    setClients([...clients, { ...newClient, _id: newId }]);
+    setShowAddModal(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6 font-sans antialiased">
       {/* Page Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Client Management</h1>
-          <p className="text-gray-600 mt-1">Manage your clients and their contracts</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">
+            Client Management
+          </h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Manage your clients and their contracts
+          </p>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg flex items-center gap-2 transition-colors shadow-sm">
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-sm font-medium transition-all shadow-sm hover:shadow-md focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+        >
           <Plus size={18} /> Add New Client
         </button>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
         {stats.map((stat, index) => (
-          <StatCard key={index} {...stat} />
+          <div
+            key={index}
+            className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4">
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ backgroundColor: `${stat.color}15` }}
+              >
+                <stat.icon size={22} style={{ color: stat.color }} />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">{stat.value}</h3>
+                <p className="text-xs text-gray-500 font-medium uppercase tracking-wider">
+                  {stat.title}
+                </p>
+              </div>
+            </div>
+          </div>
         ))}
       </div>
 
       {/* Search & Filters */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-8">
-        <div className="flex flex-col sm:flex-row gap-4">
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 mb-8 shadow-sm">
+        <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input
               type="text"
-              placeholder="Search clients by name, email, or contact..."
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-shadow"
+              placeholder="Search by name, email, phone or contact..."
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-shadow"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex gap-3">
-            <select 
-              className="px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+          <div className="flex flex-wrap gap-3">
+            <select
+              className="px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
@@ -128,132 +225,166 @@ const ClientsPage = () => {
               <option value="pending">Pending</option>
               <option value="inactive">Inactive</option>
             </select>
-            <button className="px-6 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-2">
-              <Filter size={18} /> Apply Filters
+            <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-colors">
+              <Filter size={16} /> Filters
+            </button>
+            <button className="inline-flex items-center gap-2 px-5 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-colors">
+              <Download size={16} /> Export
             </button>
           </div>
         </div>
       </div>
 
       {/* Client Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden mb-8">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Client Name</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Contact</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Vehicles</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Status</th>
-                <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Actions</th>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50/80 border-b border-gray-100">
+                <th className="text-left py-3.5 px-4 md:px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Client
+                </th>
+                <th className="text-left py-3.5 px-4 md:px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">
+                  Contact
+                </th>
+                <th className="text-left py-3.5 px-4 md:px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">
+                  Vehicles
+                </th>
+                <th className="text-left py-3.5 px-4 md:px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="text-right py-3.5 px-4 md:px-6 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-gray-50">
               {filteredClients.length > 0 ? (
                 filteredClients.map((client) => (
-                  <ClientRow key={client._id} client={client} />
+                  <ClientRow
+                    key={client._id}
+                    client={client}
+                    onView={() => setSelectedClient(client)}
+                    onDelete={() => setShowDeleteConfirm(client._id)}
+                  />
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="text-center py-12 text-gray-500">
-                    No clients found matching your criteria
+                  <td colSpan="5" className="text-center py-16 text-gray-400">
+                    <div className="flex flex-col items-center gap-2">
+                      <Users className="h-10 w-10 text-gray-300" />
+                      <p className="text-sm font-medium">No clients found</p>
+                      <p className="text-xs">Try adjusting your search or filters</p>
+                    </div>
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+        {/* Pagination placeholder */}
+        <div className="flex items-center justify-between px-4 md:px-6 py-3 border-t border-gray-100 bg-gray-50/50 text-xs text-gray-500">
+          <span>Showing {filteredClients.length} of {clients.length} clients</span>
+          <div className="flex gap-1">
+            <button className="px-3 py-1 rounded-lg bg-white border border-gray-200 hover:bg-gray-50">Prev</button>
+            <button className="px-3 py-1 rounded-lg bg-indigo-600 text-white">1</button>
+            <button className="px-3 py-1 rounded-lg bg-white border border-gray-200 hover:bg-gray-50">2</button>
+            <button className="px-3 py-1 rounded-lg bg-white border border-gray-200 hover:bg-gray-50">Next</button>
+          </div>
+        </div>
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+      <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <Clock size={18} className="text-gray-400" /> Recent Activity
+        </h3>
         <ActivityFeed />
       </div>
+
+      {/* Modals */}
+      {selectedClient && (
+        <ClientDetailModal client={selectedClient} onClose={() => setSelectedClient(null)} />
+      )}
+      {showAddModal && (
+        <AddClientModal onClose={() => setShowAddModal(false)} onAdd={handleAddClient} />
+      )}
+      {showDeleteConfirm && (
+        <DeleteConfirmModal
+          onConfirm={() => handleDelete(showDeleteConfirm)}
+          onCancel={() => setShowDeleteConfirm(null)}
+        />
+      )}
     </div>
   );
 };
 
-// Stat Card Component
-const StatCard = ({ title, value, icon: Icon, color }) => {
-  return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-center gap-4">
-        <div 
-          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ backgroundColor: `${color}15` }}
-        >
-          <Icon size={24} style={{ color }} />
-        </div>
-        <div>
-          <h3 className="text-2xl font-bold text-gray-900">{value}</h3>
-          <p className="text-sm text-gray-600">{title}</p>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Client Row Component
-const ClientRow = ({ client }) => {
-  const statusColors = {
-    active: { bg: '#10B981', text: 'white' },
-    pending: { bg: '#F59E0B', text: 'white' },
-    inactive: { bg: '#EF4444', text: 'white' }
-  };
-
-  const statusLabels = {
-    active: 'Active',
-    pending: 'Pending',
-    inactive: 'Inactive'
-  };
-
-  const color = statusColors[client.status] || statusColors.inactive;
+// --- Client Row Component ---
+const ClientRow = ({ client, onView, onDelete }) => {
+  const status = statusColors[client.status] || statusColors.inactive;
+  const label = statusLabels[client.status] || client.status;
 
   return (
-    <tr className="hover:bg-gray-50 transition-colors">
-      <td className="py-4 px-6">
+    <tr className="hover:bg-gray-50/80 transition-colors group">
+      <td className="py-3.5 px-4 md:px-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
             {client.company.charAt(0).toUpperCase()}
           </div>
           <div>
-            <div className="font-medium text-gray-900">{client.company}</div>
-            <div className="text-sm text-gray-500">{client.email}</div>
+            <div className="font-medium text-gray-800">{client.company}</div>
+            <div className="text-xs text-gray-400 flex items-center gap-1">
+              <Mail size={12} /> {client.email}
+            </div>
           </div>
         </div>
       </td>
-      <td className="py-4 px-6 text-gray-700">{client.contactPerson}</td>
-      <td className="py-4 px-6">
-        <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 font-semibold text-sm">
-          {client.vehicleCount}
+      <td className="py-3.5 px-4 md:px-6 hidden md:table-cell">
+        <div className="text-sm text-gray-700">{client.contactPerson}</div>
+        <div className="text-xs text-gray-400 flex items-center gap-1">
+          <Phone size={12} /> {client.phone}
+        </div>
+      </td>
+      <td className="py-3.5 px-4 md:px-6 hidden lg:table-cell">
+        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full text-xs font-medium">
+          <Truck size={12} /> {client.vehicleCount}
         </span>
       </td>
-      <td className="py-4 px-6">
-        <span 
-          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium"
-          style={{ 
-            backgroundColor: `${color.bg}20`,
-            color: color.bg
-          }}
+      <td className="py-3.5 px-4 md:px-6">
+        <span
+          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${status.bg} ${status.text}`}
         >
-          <span className="w-1.5 h-1.5 rounded-full mr-1.5" style={{ backgroundColor: color.bg }} />
-          {statusLabels[client.status] || client.status}
+          <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+          {label}
         </span>
       </td>
-      <td className="py-4 px-6">
-        <div className="flex items-center gap-1">
-          <button className="p-2 hover:bg-blue-50 rounded-lg transition-colors text-blue-600 hover:text-blue-700" title="View">
-            <Eye size={18} />
+      <td className="py-3.5 px-4 md:px-6 text-right">
+        <div className="flex items-center justify-end gap-0.5">
+          <button
+            onClick={onView}
+            className="p-1.5 rounded-lg hover:bg-indigo-50 text-gray-400 hover:text-indigo-600 transition-colors"
+            title="View"
+          >
+            <Eye size={17} />
           </button>
-          <button className="p-2 hover:bg-green-50 rounded-lg transition-colors text-green-600 hover:text-green-700" title="Edit">
-            <Edit size={18} />
+          <button
+            className="p-1.5 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+            title="Edit"
+          >
+            <Edit size={17} />
           </button>
-          <button className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600 hover:text-red-700" title="Delete">
-            <Trash2 size={18} />
+          <button
+            onClick={onDelete}
+            className="p-1.5 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
+            title="Delete"
+          >
+            <Trash2 size={17} />
           </button>
-          <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-600 hover:text-gray-700" title="More">
-            <MoreVertical size={18} />
+          <button
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+            title="More"
+          >
+            <MoreVertical size={17} />
           </button>
         </div>
       </td>
@@ -261,28 +392,234 @@ const ClientRow = ({ client }) => {
   );
 };
 
-// Activity Feed Component
+// --- Activity Feed ---
 const ActivityFeed = () => {
   const activities = [
-    { time: '15 min ago', text: 'ABC Logistics added 3 new vehicles' },
-    { time: '1 hour ago', text: 'City Express renewed contract' },
-    { time: '3 hours ago', text: 'QuickShip invoice #345 due' },
+    { time: '15 min ago', text: 'ABC Logistics added 3 new vehicles', icon: Truck, color: 'text-blue-500' },
+    { time: '1 hour ago', text: 'City Express renewed contract for 2026', icon: CheckCircle, color: 'text-emerald-500' },
+    { time: '3 hours ago', text: 'QuickShip invoice #345 is due', icon: DollarSign, color: 'text-amber-500' },
+    { time: 'Yesterday', text: 'Global Freight Inc. created new shipment order', icon: FileText, color: 'text-purple-500' },
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {activities.map((activity, index) => (
-        <div key={index} className="flex items-start gap-3">
-          <div className="w-2 h-2 rounded-full bg-blue-600 mt-2 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-gray-800">{activity.text}</p>
-            <span className="text-sm text-gray-500">{activity.time}</span>
+        <div key={index} className="flex items-start gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors">
+          <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <activity.icon size={14} className={activity.color} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-gray-700">{activity.text}</p>
+            <span className="text-xs text-gray-400">{activity.time}</span>
           </div>
         </div>
       ))}
-      {activities.length === 0 && (
-        <p className="text-gray-500 text-center py-8">No recent activity</p>
-      )}
+    </div>
+  );
+};
+
+// --- Client Detail Modal ---
+const ClientDetailModal = ({ client, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
+              {client.company.charAt(0)}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-gray-800">{client.company}</h2>
+              <p className="text-xs text-gray-400">{client.email}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-400">Contact Person</p>
+              <p className="font-medium text-gray-800">{client.contactPerson}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-400">Phone</p>
+              <p className="font-medium text-gray-800">{client.phone}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-400">Vehicles</p>
+              <p className="font-medium text-gray-800">{client.vehicleCount}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-400">Status</p>
+              <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                statusColors[client.status]?.bg || 'bg-gray-100'
+              } ${statusColors[client.status]?.text || 'text-gray-700'}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${statusColors[client.status]?.dot || 'bg-gray-400'}`} />
+                {statusLabels[client.status] || client.status}
+              </span>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-400">Joined</p>
+              <p className="font-medium text-gray-800">{client.joined}</p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-4">
+              <p className="text-xs text-gray-400">Total Spent</p>
+              <p className="font-medium text-gray-800">${client.totalSpent.toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
+            <p className="text-xs text-gray-500">Contracts</p>
+            <p className="text-lg font-bold text-indigo-700">{client.contracts} active contracts</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Add Client Modal ---
+const AddClientModal = ({ onClose, onAdd }) => {
+  const [form, setForm] = useState({
+    company: '',
+    email: '',
+    contactPerson: '',
+    phone: '',
+    vehicleCount: 0,
+    status: 'active',
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onAdd({
+      ...form,
+      vehicleCount: parseInt(form.vehicleCount) || 0,
+      joined: new Date().toISOString().split('T')[0],
+      totalSpent: 0,
+      contracts: 0,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-800">Add New Client</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-gray-100 transition-colors">
+            <X size={20} className="text-gray-500" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Company Name *</label>
+            <input
+              type="text"
+              required
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              value={form.company}
+              onChange={(e) => setForm({ ...form, company: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+            <input
+              type="email"
+              required
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person *</label>
+            <input
+              type="text"
+              required
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              value={form.contactPerson}
+              onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+            <input
+              type="text"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Count</label>
+            <input
+              type="number"
+              min="0"
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              value={form.vehicleCount}
+              onChange={(e) => setForm({ ...form, vehicleCount: e.target.value })}
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value })}
+            >
+              <option value="active">Active</option>
+              <option value="pending">Pending</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 rounded-xl text-sm font-medium text-white transition-colors"
+            >
+              Add Client
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// --- Delete Confirm Modal ---
+const DeleteConfirmModal = ({ onConfirm, onCancel }) => {
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl p-6 text-center">
+        <div className="w-14 h-14 rounded-full bg-rose-50 flex items-center justify-center mx-auto mb-4">
+          <Trash2 size={24} className="text-rose-600" />
+        </div>
+        <h3 className="text-lg font-bold text-gray-800">Delete Client?</h3>
+        <p className="text-sm text-gray-500 mt-1">
+          This action cannot be undone. All associated data will be removed.
+        </p>
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onCancel}
+            className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium text-gray-700 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 rounded-xl text-sm font-medium text-white transition-colors"
+          >
+            Delete
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
