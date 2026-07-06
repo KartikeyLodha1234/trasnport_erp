@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Jul 06, 2026 at 12:29 PM
+-- Generation Time: Jul 06, 2026 at 12:59 PM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.30
 
@@ -50,6 +50,39 @@ CREATE TABLE `client` (
   `vehicles` int DEFAULT '0',
   `status` varchar(20) DEFAULT 'Active'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `company_profiles`
+--
+
+CREATE TABLE `company_profiles` (
+  `id` int NOT NULL,
+  `company_name` varchar(100) NOT NULL,
+  `owner_name` varchar(100) DEFAULT NULL,
+  `phone` varchar(15) DEFAULT NULL,
+  `gstin` varchar(15) DEFAULT NULL,
+  `pan_number` varchar(10) DEFAULT NULL,
+  `address` text,
+  `city` varchar(50) NOT NULL,
+  `state` varchar(50) NOT NULL,
+  `pincode` varchar(6) NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `company_profiles`
+--
+
+INSERT INTO `company_profiles` (`id`, `company_name`, `owner_name`, `phone`, `gstin`, `pan_number`, `address`, `city`, `state`, `pincode`, `created_at`, `updated_at`) VALUES
+(1, 'Transport', '', '', '', '', '', '', '', '', '2026-07-06 12:59:12', '2026-07-06 12:59:12'),
+(2, 'ABC Transport', 'Rahul Sharma', '9876543210', 'GSTIN12345', 'PAN12345', '123 Main Road, Andheri', 'Mumbai', 'Maharashtra', '400001', '2026-07-06 12:59:12', '2026-07-06 12:59:12'),
+(3, 'XYZ Logistics', 'Priya Patel', '9876543211', 'GSTIN67890', 'PAN67890', '456 Park Street', 'Delhi', 'Delhi', '110001', '2026-07-06 12:59:12', '2026-07-06 12:59:12'),
+(4, 'Transport', '', '', '', '', '', '', '', '', '2026-07-06 12:59:25', '2026-07-06 12:59:25'),
+(5, 'ABC Transport', 'Rahul Sharma', '9876543210', 'GSTIN12345', 'PAN12345', '123 Main Road, Andheri', 'Mumbai', 'Maharashtra', '400001', '2026-07-06 12:59:25', '2026-07-06 12:59:25'),
+(6, 'XYZ Logistics', 'Priya Patel', '9876543211', 'GSTIN67890', 'PAN67890', '456 Park Street', 'Delhi', 'Delhi', '110001', '2026-07-06 12:59:25', '2026-07-06 12:59:25');
 
 -- --------------------------------------------------------
 
@@ -364,6 +397,15 @@ ALTER TABLE `client`
   ADD PRIMARY KEY (`client_id`);
 
 --
+-- Indexes for table `company_profiles`
+--
+ALTER TABLE `company_profiles`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_company_name` (`company_name`),
+  ADD KEY `idx_city` (`city`),
+  ADD KEY `idx_state` (`state`);
+
+--
 -- Indexes for table `drivers`
 --
 ALTER TABLE `drivers`
@@ -450,6 +492,12 @@ ALTER TABLE `city`
 --
 ALTER TABLE `client`
   MODIFY `client_id` int NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `company_profiles`
+--
+ALTER TABLE `company_profiles`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `drivers`

@@ -80,6 +80,12 @@ const Input = styled.input`
   &::placeholder {
     color: #94a3b8;
   }
+
+  &:disabled {
+    background: #f1f5f9;
+    color: #64748b;
+    cursor: not-allowed;
+  }
 `;
 
 const Textarea = styled.textarea`
@@ -128,14 +134,27 @@ const Button = styled.button`
   }
 `;
 
+const ErrorMessage = styled.span`
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 4px;
+`;
+
 const CompanySettings = () => {
   const [formData, setFormData] = useState({
-    companyName: '',
+    companyName: 'Transport', // Default value - non-editable
     ownerName: '',
     phone: '',
     gstin: '',
     panNumber: '',
     address: '',
+    city: '',
+    state: '',
+    pincode: '',
+  });
+
+  const [errors, setErrors] = useState({
+    companyName: '',
     city: '',
     state: '',
     pincode: '',
@@ -147,12 +166,58 @@ const CompanySettings = () => {
       ...prev,
       [name]: value
     }));
+    // Clear error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: ''
+      }));
+    }
+  };
+
+  const validateForm = () => {
+    let isValid = true;
+    const newErrors = {};
+
+    // Validate Company Name (required but non-editable)
+    if (!formData.companyName.trim()) {
+      newErrors.companyName = 'Company Name is required';
+      isValid = false;
+    }
+
+    // Validate City (required)
+    if (!formData.city.trim()) {
+      newErrors.city = 'City is required';
+      isValid = false;
+    }
+
+    // Validate State (required)
+    if (!formData.state.trim()) {
+      newErrors.state = 'State is required';
+      isValid = false;
+    }
+
+    // Validate Pincode (required)
+    if (!formData.pincode.trim()) {
+      newErrors.pincode = 'Pincode is required';
+      isValid = false;
+    } else if (!/^\d{6}$/.test(formData.pincode.trim())) {
+      newErrors.pincode = 'Pincode must be 6 digits';
+      isValid = false;
+    }
+
+    setErrors(newErrors);
+    return isValid;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
     console.log('Company Profile Data:', formData);
-    // Here you would make an API call to save the data
     alert('Company profile saved successfully!');
   };
 
@@ -164,8 +229,8 @@ const CompanySettings = () => {
         </CardHeader>
         <CardBody>
           <Form onSubmit={handleSubmit}>
-            {/* Row 1: Company Name & Owner Name */}
-            <Row columns="2fr 1fr">
+            {/* Row 1: Company Name (Disabled/Read-only) & Phone */}
+            <Row columns="1fr 1fr">
               <FormGroup>
                 <Label>
                   Company Name <Required>*</Required>
@@ -176,10 +241,13 @@ const CompanySettings = () => {
                   value={formData.companyName}
                   onChange={handleChange}
                   placeholder="Company Name"
+                  disabled
+                  readOnly
                   required
                 />
+                {errors.companyName && <ErrorMessage>{errors.companyName}</ErrorMessage>}
               </FormGroup>
-              <FormGroup>
+               <FormGroup>
                 <Label>Owner Name</Label>
                 <Input
                   type="text"
@@ -189,10 +257,44 @@ const CompanySettings = () => {
                   placeholder="Owner Name"
                 />
               </FormGroup>
-            </Row>
-
-            {/* Row 2: Phone, GSTIN, PAN */}
-            <Row columns="1fr 1fr 1fr">
+              <FormGroup>
+                <Label>
+                  City <Required>*</Required>
+                </Label>
+                <Input
+                  type="text"
+                  name="city"
+                  value={formData.city}
+                  onChange={handleChange}
+                  placeholder="City"
+                  required
+                />
+                {errors.city && <ErrorMessage>{errors.city}</ErrorMessage>}
+              </FormGroup>
+              <FormGroup>
+                <Label>
+                  State <Required>*</Required>
+                </Label>
+                <Input
+                  type="text"
+                  name="state"
+                  value={formData.state}
+                  onChange={handleChange}
+                  placeholder="State"
+                  required
+                />
+                {errors.state && <ErrorMessage>{errors.state}</ErrorMessage>}
+              </FormGroup>
+                <FormGroup>
+                <Label>PAN Number</Label>
+                <Input
+                  type="text"
+                  name="panNumber"
+                  value={formData.panNumber}
+                  onChange={handleChange}
+                  placeholder="PAN Number"
+                />
+              </FormGroup>
               <FormGroup>
                 <Label>Phone</Label>
                 <Input
@@ -204,6 +306,21 @@ const CompanySettings = () => {
                 />
               </FormGroup>
               <FormGroup>
+                <Label>
+                  Pincode <Required>*</Required>
+                </Label>
+                <Input
+                  type="text"
+                  name="pincode"
+                  value={formData.pincode}
+                  onChange={handleChange}
+                  placeholder="Pincode"
+                  required
+                  maxLength="6"
+                />
+                {errors.pincode && <ErrorMessage>{errors.pincode}</ErrorMessage>}
+              </FormGroup>
+              <FormGroup>
                 <Label>GSTIN</Label>
                 <Input
                   type="text"
@@ -213,19 +330,9 @@ const CompanySettings = () => {
                   placeholder="GSTIN"
                 />
               </FormGroup>
-              <FormGroup>
-                <Label>PAN Number</Label>
-                <Input
-                  type="text"
-                  name="panNumber"
-                  value={formData.panNumber}
-                  onChange={handleChange}
-                  placeholder="PAN Number"
-                />
-              </FormGroup>
             </Row>
 
-            {/* Address */}
+            {/* Row 2: Address (full width) */}
             <FormGroup style={{ marginBottom: '16px' }}>
               <Label>Address</Label>
               <Textarea
@@ -237,39 +344,7 @@ const CompanySettings = () => {
               />
             </FormGroup>
 
-            {/* Row 3: City, State, Pincode */}
-            <Row columns="1fr 1fr 1fr">
-              <FormGroup>
-                <Label>City</Label>
-                <Input
-                  type="text"
-                  name="city"
-                  value={formData.city}
-                  onChange={handleChange}
-                  placeholder="City"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>State</Label>
-                <Input
-                  type="text"
-                  name="state"
-                  value={formData.state}
-                  onChange={handleChange}
-                  placeholder="State"
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label>Pincode</Label>
-                <Input
-                  type="text"
-                  name="pincode"
-                  value={formData.pincode}
-                  onChange={handleChange}
-                  placeholder="Pincode"
-                />
-              </FormGroup>
-            </Row>
+
 
             <Button type="submit">
               💾 Save Company Profile
