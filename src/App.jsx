@@ -8,6 +8,9 @@ import ProtectedRoute from "../web/src/components/ProtectedRoute.jsx";
 
 import Login from "../web/src/pages/login.jsx";
 // Dashboard
+import MaintenanceRegistryLog from "../web/src/pages/admin/master/maintenancelogs.jsx";
+import routes from "../web/src/pages/admin/routes/routes.jsx";
+import ClientsPage from "../web/src/pages/admin/master/client.jsx";
 import Home from "../web/src/pages/admin/dashboard/Home.jsx";
 import LiveMap from "../web/src/pages/admin/dashboard/live-map.jsx";
 import CreateLR from '../web/src/pages/admin/booking/lr.jsx';
@@ -25,6 +28,7 @@ import Profile from "../web/src/pages/admin/profile.jsx";
 import CompanySettings from "../web/src/pages/admin/settings/CompanySettings.jsx";
 import AdminWallet from "../web/src/pages/admin/wallet/wallet.jsx";
 import Transactions from "../web/src/pages/admin/transactions/Transactions.jsx";
+import Cities from "../web/src/pages/admin/routes/city.jsx";
 
 // ===== STYLED COMPONENTS =====
 const LayoutWrapper = styled.div`
@@ -158,11 +162,11 @@ function App() {
         />
         <Route 
           path="/masters/clients" 
-          element={ProtectedRouteWithLayout(() => <div>Clients Master Page</div>)} 
+          element={ProtectedRouteWithLayout(ClientsPage)} 
         />
         <Route 
-          path="/masters/vendors" 
-          element={ProtectedRouteWithLayout(() => <div>Vendors Master Page</div>)} 
+          path="/masters/city" 
+          element={ProtectedRouteWithLayout(Cities)} 
         />
         <Route 
           path="/masters/vehicles" 
@@ -181,12 +185,12 @@ function App() {
           element={ProtectedRouteWithLayout(DriverShow, { requiredRole: 'admin' })} 
         />
         <Route 
-          path="/masters/rates" 
-          element={ProtectedRouteWithLayout(() => <div>Rate Master Page</div>)} 
+          path="/masters/routes" 
+          element={ProtectedRouteWithLayout(routes)} 
         />
         <Route 
           path="/masters/maintenance" 
-          element={ProtectedRouteWithLayout(() => <div>Maintenance Page</div>)} 
+          element={ProtectedRouteWithLayout(MaintenanceRegistryLog)} 
         />
 
         {/* Settings Routes */}

@@ -140,10 +140,10 @@ const TopNav = () => {
       label: 'Masters',
       dropdown: [
         { path: '/masters/clients', label: 'Clients' },
-        { path: '/masters/vendors', label: 'Vendors' },
+        { path: '/masters/city', label: 'City' },
         { path: '/masters/vehicles', label: 'Vehicles' },
         { path: '/masters/drivershow', label: 'Drivers' },
-        { path: '/masters/rates', label: 'Rate Master' },
+        { path: '/masters/routes', label: 'Routes' },
         { path: '/masters/maintenance', label: 'Maintenance' },
       ]
     },
