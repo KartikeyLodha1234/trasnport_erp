@@ -14,7 +14,7 @@ export default function DriverFleetDirectory() {
     const [vehicleFormData, setVehicleFormData] = useState({
         vehicleId: '',
         vehicleType: '',
-        companyName: '',
+        truckmodel: '',
         modelYear: '',
         licensePlate: '',
         pucNumber: '',
@@ -124,7 +124,7 @@ export default function DriverFleetDirectory() {
             
             if (response.ok) {
                 setVehicleFormData({
-                    vehicleId: '', vehicleType: '', companyName: '',
+                    vehicleId: '', vehicleType: '', truckmodel: '',
                     modelYear: '', licensePlate: '', pucNumber: '',
                     pucExpiry: '', notes: ''
                 });
@@ -227,8 +227,8 @@ export default function DriverFleetDirectory() {
 
                                 <FormRow>
                                     <FormGroup>
-                                        <label>🏷️ Company Name</label>
-                                        <input type="text" id="companyName" placeholder="e.g., Cascadia" value={vehicleFormData.companyName} onChange={handleVehicleChange} />
+                                        <label>🏷️ Truck Model</label>
+                                        <input type="text" id="truckmodel" placeholder="e.g., Cascadia" value={vehicleFormData.truckmodel} onChange={handleVehicleChange} />
                                     </FormGroup>
                                     <FormGroup>
                                         <label>📅 Model Year</label>

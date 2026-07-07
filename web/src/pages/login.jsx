@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 const Form = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const [credentials, setCredentials] = useState({
     email: '',
@@ -17,46 +18,33 @@ const Form = () => {
       ...prev,
       [name]: value
     }));
+    setError(''); // Clear error on typing
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
-    // TEMPORARY - Admin login (Remove when backend is ready)
-    if (credentials.email === 'admin' && credentials.password === '12345') {
-      localStorage.setItem('token', 'demo-token');
-      localStorage.setItem('userRole', 'admin');
-      localStorage.setItem('userName', 'Admin User');
-      navigate('/dashboard');
-      setLoading(false);
-      return;
-    }
-
-    // TEMPORARY - Driver login (Remove when backend is ready)
-    if (credentials.email === 'driver' && credentials.password === '12345') {
-      localStorage.setItem('token', 'demo-token');
-      localStorage.setItem('userRole', 'driver');
-      localStorage.setItem('userName', 'Driver User');
-      localStorage.setItem('userId', '1');  
-      navigate('/driver-dashboard');
-      setLoading(false);
-      return;
-    }
+    setError('');
 
     try {
+      console.log('🔐 Attempting login with:', credentials.email);
+
       const response = await fetch('http://localhost:5000/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(credentials)
       });
 
       const data = await response.json();
+      console.log('📡 Server response:', data);
 
       if (data.success) {
+        // Save token and user data
         localStorage.setItem('token', data.token);
         localStorage.setItem('userRole', data.role || 'driver');
-        // ✅ FIXED: Use data.user instead of data.driver
         localStorage.setItem('userName', data.user?.name || 'User');
         localStorage.setItem('userEmail', data.user?.email || '');
         localStorage.setItem('userId', data.user?.id || '');
@@ -68,10 +56,11 @@ const Form = () => {
           navigate('/driver-dashboard');
         }
       } else {
-        alert(data.message || 'Login failed!');
+        setError(data.message || 'Login failed! Please check your credentials.');
       }
     } catch (error) {
-      alert('सर्वर से कनेक्ट नहीं हो पा रहा है। कृपया बाद में प्रयास करें।');
+      console.error('❌ Login error:', error);
+      setError('Server not reachable. Please make sure Flask server is running on port 5000.');
     } finally {
       setLoading(false);
     }
@@ -81,15 +70,21 @@ const Form = () => {
     <StyledWrapper>
       <div className="form-container">
         <div className="branding-container">
-          <p className="title">CargoMax</p>
+          <p className="title">🚛 CargoMax</p>
           <p className="subtitle">Logistics & Fleet Management Console</p>
         </div>
 
+        {error && (
+          <div className="error-message">
+            ⚠️ {error}
+          </div>
+        )}
+
         <form className="form" onSubmit={handleSubmit}>
           <div className="input-block">
-            <label className="input-label">Operator Identification (Driver / Admin)</label>
+            <label className="input-label">Email Address</label>
             <input 
-              type="text" 
+              type="email" 
               name="email"
               className="input" 
               placeholder="Enter email" 
@@ -101,7 +96,7 @@ const Form = () => {
           </div>
 
           <div className="input-block">
-            <label className="input-label">Security Authorization Password</label>
+            <label className="input-label">Password</label>
             <input 
               type="password" 
               name="password"
@@ -119,8 +114,14 @@ const Form = () => {
             className="form-btn"
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            {loading ? '⏳ Logging in...' : '🔐 Login'}
           </button>
+
+          <div className="demo-credentials">
+            <p style={{ fontSize: '12px', color: '#94a3b8', marginTop: '12px' }}>
+              <strong>Demo Admin:</strong> admin@cargomax.com / admin123
+            </p>
+          </div>
         </form>
       </div>
     </StyledWrapper>
@@ -133,7 +134,7 @@ const StyledWrapper = styled.div`
   justify-content: center;
   align-items: center;
   
-  background-image: linear-gradient(rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.8)), 
+  background-image: linear-gradient(rgba(15, 23, 42, 0.85), rgba(15, 23, 42, 0.85)), 
                     url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=2070&auto=format&fit=crop');
   background-size: cover;
   background-position: center;
@@ -152,7 +153,6 @@ const StyledWrapper = styled.div`
     border-radius: 24px;
     box-sizing: border-box;
     padding: 48px 36px;
-    backdrop-filter: blur(8px);
   }
 
   .branding-container {
@@ -173,6 +173,16 @@ const StyledWrapper = styled.div`
     color: #94a3b8;
     margin: 0;
     font-weight: 500;
+  }
+
+  .error-message {
+    background-color: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #dc2626;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 14px;
+    margin-bottom: 20px;
   }
 
   .form {
@@ -245,6 +255,10 @@ const StyledWrapper = styled.div`
   .form-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .demo-credentials {
+    text-align: center;
   }
 `;
 

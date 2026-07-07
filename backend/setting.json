@@ -1,0 +1,13 @@
+{
+    "python.autoComplete.extraPaths": [
+        "${workspaceFolder}"
+    ],
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}",
+        "${workspaceFolder}/services"
+    ],
+    "python.analysis.diagnosticSeverity": {
+        "reportMissingImports": "warning",
+        "reportMissingModuleSource": "warning"
+    }
+}
