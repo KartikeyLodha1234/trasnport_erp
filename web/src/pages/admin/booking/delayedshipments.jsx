@@ -1,100 +1,97 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
+const API_BASE = 'http://localhost:8001/api';
+
 export default function DelayedShipments() {
   const [delayedShipments, setDelayedShipments] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [drivers, setDrivers] = useState([]);
   const [vehicles, setVehicles] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterSeverity, setFilterSeverity] = useState('All');
+  const [fetched, setFetched] = useState(false);
 
-  // ==================== API CALLS ====================
-  const API_BASE = 'http://localhost:5000/api';
-
-  useEffect(() => {
+  // Fetch data once on first render
+  if (!fetched) {
+    setFetched(true);
     fetchData();
-  }, []);
+  }
 
-  const fetchData = async () => {
+  async function fetchData() {
     try {
       setLoading(true);
-      
-      // Fetch shipments
-      const shipmentRes = await fetch(`${API_BASE}/shipments`);
-      const shipmentData = await shipmentRes.json();
-      
-      // Fetch drivers
-      const driverRes = await fetch(`${API_BASE}/drivers`);
-      const driverData = await driverRes.json();
-      
-      // Fetch vehicles
-      const vehicleRes = await fetch(`${API_BASE}/vehicles`);
-      const vehicleData = await vehicleRes.json();
 
-      if (shipmentRes.ok) {
-        setDrivers(driverData.data || []);
-        setVehicles(vehicleData || []);
+      const [shipmentRes, driverRes, vehicleRes] = await Promise.all([
+        axios.get(`${API_BASE}/shipments/`),
+        axios.get(`${API_BASE}/drivers/`),
+        axios.get(`${API_BASE}/vehicles/`)
+      ]);
 
-        const shipments = shipmentData.data || [];
+      const shipmentData = shipmentRes.data.data || shipmentRes.data || [];
+      const driverData = driverRes.data.data || driverRes.data || [];
+      const vehicleData = vehicleRes.data.data || vehicleRes.data || [];
 
-        // Filter delayed shipments
-        const delayed = shipments.filter(s =>
-          s.status === 'Delayed' || s.status === 'Alert'
-        );
-        
-        // Map with driver and vehicle details
-        const mappedDelayed = delayed.map(s => {
-          const driver = driverData.data?.find(d => d.id === s.driver_id);
-          const vehicle = vehicleData?.find(v => v.id === s.vehicle_id);
-          
-          return {
-            id: s.tracking_id || `TRK-${String(s.id).padStart(4, '0')}`,
-            shipmentId: s.id,
-            driver: driver?.full_name || 'Unassigned',
-            vehicle: vehicle?.vehicle_id || 'N/A',
-            vehicleName: vehicle?.company_name || 'N/A',
-            route: `${vehicle?.company_name || 'Origin'} → ${s.destination || 'N/A'}`,
-            reason: getDelayReason(s.status, s.notes),
-            severity: getSeverity(s.status, s.notes),
-            status: s.status,
-            destination: s.destination,
-            eta: s.eta,
-            notes: s.notes,
-            client: s.client || 'N/A',
-            weight: s.weight || 'N/A'
-          };
-        });
-        
-        setDelayedShipments(mappedDelayed);
-      }
+      setDrivers(driverData);
+      setVehicles(vehicleData);
+
+      // Filter delayed shipments
+      const delayed = shipmentData.filter(s =>
+        s.status === 'Delayed' || s.status === 'Alert'
+      );
+
+      // Map with driver and vehicle details
+      const mappedDelayed = delayed.map(s => {
+        const driver = driverData.find(d => d.id === s.driver_id);
+        const vehicle = vehicleData.find(v => v.id === s.vehicle_id);
+
+        return {
+          id: s.tracking_id || `TRK-${String(s.id).padStart(4, '0')}`,
+          shipmentId: s.id,
+          driver: driver?.full_name || 'Unassigned',
+          vehicle: vehicle?.vehicle_id || 'N/A',
+          vehicleName: vehicle?.company_name || 'N/A',
+          route: `${vehicle?.company_name || 'Origin'} → ${s.destination || 'N/A'}`,
+          reason: getDelayReason(s.status, s.notes),
+          severity: getSeverity(s.status, s.notes),
+          status: s.status,
+          destination: s.destination,
+          eta: s.eta,
+          notes: s.notes,
+          client: s.client || 'N/A',
+          weight: s.weight || 'N/A'
+        };
+      });
+
+      setDelayedShipments(mappedDelayed);
     } catch (error) {
       console.error('Error fetching delayed shipments:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   // ==================== HELPERS ====================
 
-  const getDelayReason = (status, notes) => {
+  function getDelayReason(status, notes) {
     if (notes && notes.toLowerCase().includes('traffic')) return 'Traffic Congestion';
     if (notes && notes.toLowerCase().includes('weather')) return 'Weather Conditions';
     if (notes && notes.toLowerCase().includes('mechanical')) return 'Mechanical Issue';
     if (status === 'Alert') return 'Critical Alert - Immediate Attention';
     return 'Route Delay';
-  };
+  }
 
-  const getSeverity = (status, notes) => {
+  function getSeverity(status, notes) {
     if (status === 'Alert') return 'Critical';
     if (notes && notes.toLowerCase().includes('critical')) return 'Critical';
     if (notes && notes.toLowerCase().includes('urgent')) return 'High';
     return 'Medium';
-  };
+  }
 
-  const getSeverityColor = (severity) => {
+  function getSeverityColor(severity) {
     const colors = {
       'Critical': '#dc2626',
       'High': '#f59e0b',
@@ -102,9 +99,9 @@ export default function DelayedShipments() {
       'Low': '#22c55e'
     };
     return colors[severity] || '#94a3b8';
-  };
+  }
 
-  const getSeverityBg = (severity) => {
+  function getSeverityBg(severity) {
     const colors = {
       'Critical': 'rgba(220, 38, 38, 0.1)',
       'High': 'rgba(245, 158, 11, 0.1)',
@@ -112,9 +109,9 @@ export default function DelayedShipments() {
       'Low': 'rgba(34, 197, 94, 0.1)'
     };
     return colors[severity] || 'rgba(148, 163, 184, 0.1)';
-  };
+  }
 
-  const formatDate = (dateString) => {
+  function formatDate(dateString) {
     if (!dateString || dateString === '0000-00-00 00:00:00') return 'N/A';
     try {
       const date = new Date(dateString);
@@ -128,7 +125,7 @@ export default function DelayedShipments() {
     } catch {
       return dateString;
     }
-  };
+  }
 
   // Filter shipments
   const filteredShipments = delayedShipments.filter(s => {
@@ -145,7 +142,7 @@ export default function DelayedShipments() {
 
   // ==================== EXPORT FUNCTIONS ====================
 
-  const exportToPDF = () => {
+  function exportToPDF() {
     if (delayedShipments.length === 0) {
       alert('No delayed shipments to export!');
       return;
@@ -238,7 +235,7 @@ export default function DelayedShipments() {
       console.error('Error exporting PDF:', error);
       alert('❌ Failed to export PDF: ' + error.message);
     }
-  };
+  }
 
   // ==================== STATS ====================
   const criticalCount = delayedShipments.filter(s => s.severity === 'Critical').length;

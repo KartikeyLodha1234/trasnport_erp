@@ -21,7 +21,8 @@
           email: '',
           phone: '',
           password: '',
-          confirmPassword: '', 
+          confirmPassword: '',
+          routes:'', 
           emergencyContact: '',
           addressProof: '',
           aadharCard: '',
@@ -47,7 +48,7 @@
         // बैकएंड से डेटा सिंक करने के लिए फ़ंक्शन
         const fetchDrivers = async () => {
         try {
-          const response = await fetch('http://localhost:5000/api/drivers'); // Changed from 127.0.0.1
+          const response = await fetch('http://localhost:8001/api/drivers/');
           const result = await response.json();
           if (response.ok && result.success) {
             setDriversData(result.data || []);
@@ -63,7 +64,7 @@ const handleDelete = async (id) => {
 
         try {
           // Changed from 127.0.0.1 to localhost to prevent CORS block
-          const response = await fetch(`http://localhost:5000/api/drivers/${id}`, {
+          const response = await fetch(`http://localhost:8001/api/drivers/${id}`, {
             method: 'DELETE'
           });
           
@@ -133,6 +134,8 @@ const handleDelete = async (id) => {
           dataToSend.append('panCard', formData.panCard);
           dataToSend.append('medicalReport', formData.medicalReport);
           dataToSend.append('policeVerification', formData.policeVerification);
+          dataToSend.append('emergencyContact', formData.emergencyContact);
+          dataToSend.append('addressProof', formData.addressProof);
           dataToSend.append('dob', formData.dob);
 
           if (formData.licenseFile) dataToSend.append('licenseFile', formData.licenseFile);
@@ -142,18 +145,19 @@ const handleDelete = async (id) => {
           if (formData.aadharFile) dataToSend.append('aadharFile', formData.aadharFile);
 
           if (!formData.licenseFile) {
-            alert('कृपया driving लाइसेंस फ़ाइल अपलोड करें, यह अनिवार्य है!');
-            setFormSubmitted(false);
-            return;
+            console.warn('No license file selected. Backend request will still be sent because the API accepts optional files.');
           }
 
+          console.log('Submitting driver payload:', [...dataToSend.entries()].map(([key, value]) => [key, value instanceof File ? value.name : value]));
+
           try {
-            const response = await fetch('http://127.0.0.1:5000/api/drivers', {
+            const response = await fetch('http://localhost:8001/api/drivers/', {
               method: 'POST',
               body: dataToSend
             });
 
             const result = await response.json();
+            console.log('Driver create response', response.status, result);
 
             if (response.ok && result.success) {
               setIsModalOpen(false); 
@@ -161,7 +165,7 @@ const handleDelete = async (id) => {
               
               // फॉर्म रीसेट
               setFormData({
-                fullName: '', email: '', phone: '', password: '', confirmPassword: '',
+                fullName: '', email: '', phone: '', password: '', confirmPassword: '', routes:'',
                 emergencyContact: '', addressProof: '', aadharCard: '', panCard: '',
                 bankName: '', accountNumber: '', ifscCode: '', bankBranch: '',
                 medicalReport: 'Pending', policeVerification: 'Pending', licenseNumber: '', experience: '', dob: '',
@@ -373,6 +377,21 @@ const handleDelete = async (id) => {
                         <FormGroup>
                           <label htmlFor="confirmPassword">Confirm Password</label>
                           <input type="password" id="confirmPassword" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} placeholder="..........." required />
+                        </FormGroup>
+                         <FormGroup>
+                          <label htmlFor="routes">routes</label>
+                          <input type="password" id="routes" name="routes" value={formData.routes} onChange={handleChange} placeholder="..........." required />
+                        </FormGroup>
+                      </FormRow>
+
+                      <FormRow columns="2">
+                        <FormGroup>
+                          <label htmlFor="emergencyContact">Emergency Contact</label>
+                          <input type="tel" id="emergencyContact" name="emergencyContact" value={formData.emergencyContact} onChange={handleChange} placeholder="e.g. 9812345678" />
+                        </FormGroup>
+                        <FormGroup>
+                          <label htmlFor="addressProof">Address Proof</label>
+                          <input type="text" id="addressProof" name="addressProof" value={formData.addressProof} onChange={handleChange} placeholder="e.g. Driver ration card" />
                         </FormGroup>
                       </FormRow>
 

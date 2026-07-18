@@ -10,7 +10,7 @@ export default function VehicleDetails() {
 
   useEffect(() => {
     // API से सिंगल व्हीकल का डेटा लाएं
-    fetch(`http://localhost:5000/api/vehicles/${id}`)
+    fetch(`http://localhost:8001/api/vehicles/${id}`)
       .then(res => res.json())
       .then(data => {
         setVehicle(data);

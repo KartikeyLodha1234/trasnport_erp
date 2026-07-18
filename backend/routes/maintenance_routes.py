@@ -1,32 +1,33 @@
-from flask import request, jsonify
-from flask_jwt_extended import jwt_required
-from routes import maintenance_bp
+from fastapi import APIRouter, HTTPException
 from database import Database
 
+router = APIRouter()
 db = Database()
 
-@maintenance_bp.route('/', methods=['GET'])
-@jwt_required()
+@router.get("")
+def get_maintenance_logs_no_slash():
+    return get_maintenance_logs()
+
+@router.get("/")
 def get_maintenance_logs():
     try:
         logs = db.get_all_maintenance_logs()
-        return jsonify({'success': True, 'data': logs})
+        return {'success': True, 'data': logs}
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@maintenance_bp.route('/', methods=['POST'])
-@jwt_required()
-def create_maintenance_log():
+@router.post("")
+def create_maintenance_log_no_slash(data: dict):
+    return create_maintenance_log(data)
+
+@router.post("/")
+def create_maintenance_log(data: dict):
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'message': 'No data provided'}), 400
-        
         required = ['vehicle_id', 'description', 'service_date']
         for field in required:
             if not data.get(field):
-                return jsonify({'success': False, 'message': f'{field} is required'}), 400
-        
+                raise HTTPException(status_code=400, detail=f'{field} is required')
+
         log_data = {
             'vehicle_id': data['vehicle_id'],
             'maintenance_type': data.get('maintenance_type'),
@@ -36,42 +37,33 @@ def create_maintenance_log():
             'cost': data.get('cost', 0),
             'status': data.get('status', 'In Progress')
         }
-        
+
         log_id = db.create_maintenance_log(log_data)
-        return jsonify({
-            'success': True,
-            'message': 'Maintenance log created',
-            'id': log_id
-        }), 201
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return {'success': True, 'message': 'Maintenance log created', 'id': log_id}
 
-@maintenance_bp.route('/<int:log_id>', methods=['PUT'])
-@jwt_required()
-def update_maintenance_log(log_id):
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/{log_id}")
+def update_maintenance_log(log_id: int, data: dict):
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'message': 'No data provided'}), 400
-        
         if db.update_maintenance_log(log_id, data):
-            return jsonify({
-                'success': True,
-                'message': 'Maintenance log updated',
-                'data': db.get_maintenance_log_by_id(log_id)
-            })
-        return jsonify({'success': False, 'message': 'Failed to update'}), 400
-        
+            return {'success': True, 'message': 'Maintenance log updated', 'data': db.get_maintenance_log_by_id(log_id)}
+        raise HTTPException(status_code=400, detail="Failed to update")
+    except HTTPException:
+        raise
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@maintenance_bp.route('/<int:log_id>', methods=['DELETE'])
-@jwt_required()
-def delete_maintenance_log(log_id):
+@router.delete("/{log_id}")
+def delete_maintenance_log(log_id: int):
     try:
         if db.delete_maintenance_log(log_id):
-            return jsonify({'success': True, 'message': 'Maintenance log deleted'})
-        return jsonify({'success': False, 'message': 'Not found'}), 404
+            return {'success': True, 'message': 'Maintenance log deleted'}
+        raise HTTPException(status_code=404, detail="Not found")
+    except HTTPException:
+        raise
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))

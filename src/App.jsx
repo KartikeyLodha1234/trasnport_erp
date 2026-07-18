@@ -30,7 +30,8 @@ import AdminWallet from "../web/src/pages/admin/wallet/wallet.jsx";
 import Transactions from "../web/src/pages/admin/transactions/Transactions.jsx";
 import Cities from "../web/src/pages/admin/routes/city.jsx";
 import BookingHistory from "../web/src/pages/admin/booking/bookinghistory.jsx";
-
+import Parties from "../web/src/pages/admin/master/Parties.jsx";
+import Branches from "../web/src/pages/admin/master/Branches.jsx";
 // ===== STYLED COMPONENTS =====
 const LayoutWrapper = styled.div`
   display: flex;
@@ -112,6 +113,11 @@ function App() {
           element={ProtectedRouteWithLayout(() => <div>Completed Deliveries Page</div>)} 
         />
 
+        <Route 
+  path="/masters/branches" 
+  element={ProtectedRouteWithLayout(Branches)} 
+/>
+
         {/* Accounts Routes */}
         <Route 
           path="/accounts" 
@@ -173,6 +179,11 @@ function App() {
           path="/masters/vehicles" 
           element={ProtectedRouteWithLayout(VehicleList, { requiredRole: 'admin' })} 
         />
+
+        <Route 
+  path="/masters/parties" 
+  element={ProtectedRouteWithLayout(Parties)} 
+/>
         <Route 
           path="/vehicle-view/:id?" 
           element={ProtectedRouteWithLayout(VehicleView, { requiredRole: 'admin' })} 

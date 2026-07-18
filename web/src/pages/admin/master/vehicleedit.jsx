@@ -70,7 +70,7 @@ export default function VehicleEdit({ vehicleData, onClose, onRefresh }) {
                 dataToSend.append('pucFile', pucFile);
             }
 
-            const response = await fetch(`http://localhost:5000/api/vehicles/${vehicleData.id}`, {
+            const response = await fetch(`http://localhost:8001/api/vehicles/${vehicleData.id}`, {
                 method: 'PUT',
                 body: dataToSend
             });

@@ -1,11 +1,5 @@
-#!/usr/bin/env python
-import os
-import sys
-from app import app
+# run.py
+import uvicorn
 
-if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('DEBUG', 'True').lower() == 'true'
-    
-    print(f"🚀 Starting Flask Backend Server on port {port}")
-    app.run(debug=debug, host='0.0.0.0', port=port)
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

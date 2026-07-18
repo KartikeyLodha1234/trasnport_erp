@@ -3,11 +3,10 @@ import styled from 'styled-components';
 import * as XLSX from 'xlsx';
 
 export default function MaintenanceRegistryLog() {
-  // 🟢 State: Modal Management
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false); // 🔴 ADD THIS
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [selectedLog, setSelectedLog] = useState(null);
   const [vehicles, setVehicles] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -15,7 +14,6 @@ export default function MaintenanceRegistryLog() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   
-  // 🟢 Form state for new maintenance log
   const [formData, setFormData] = useState({
     vehicle_id: '',
     category: '',
@@ -26,7 +24,6 @@ export default function MaintenanceRegistryLog() {
     maintenance_type: ''
   });
 
-  // 🟢 Edit form state
   const [editFormData, setEditFormData] = useState({
     id: '',
     vehicle_id: '',
@@ -38,7 +35,6 @@ export default function MaintenanceRegistryLog() {
     maintenance_type: ''
   });
 
-  // 🟢 Fetch data from backend
   useEffect(() => {
     fetchVehicles();
     fetchMaintenanceLogs();
@@ -46,12 +42,13 @@ export default function MaintenanceRegistryLog() {
 
   const fetchVehicles = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/vehicles');
-      const data = await response.json();
+      const response = await fetch('http://localhost:8001/api/vehicles');
+      const result = await response.json();
       if (response.ok) {
-        setVehicles(data);
+        const data = result.data || result;
+        setVehicles(Array.isArray(data) ? data : []);
       } else {
-        console.error('Failed to fetch vehicles:', data.message);
+        console.error('Failed to fetch vehicles:', result);
       }
     } catch (error) {
       console.error('Error fetching vehicles:', error);
@@ -60,17 +57,17 @@ export default function MaintenanceRegistryLog() {
 
   const fetchMaintenanceLogs = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/maintenance');
-      const data = await response.json();
+      const response = await fetch('http://localhost:8001/api/maintenance');
+      const result = await response.json();
       if (response.ok) {
-        setMaintenanceLogs(data);
+        const data = result.data || result;
+        setMaintenanceLogs(Array.isArray(data) ? data : []);
       }
     } catch (error) {
       console.error('Error fetching maintenance logs:', error);
     }
   };
 
-  // 🟢 Handle form input changes
   const handleFormChange = (e) => {
     const { id, value } = e.target;
     setFormData(prev => ({
@@ -79,7 +76,6 @@ export default function MaintenanceRegistryLog() {
     }));
   };
 
-  // 🟢 Handle edit form input changes
   const handleEditFormChange = (e) => {
     const { id, value } = e.target;
     setEditFormData(prev => ({
@@ -88,13 +84,12 @@ export default function MaintenanceRegistryLog() {
     }));
   };
 
-  // 🟢 Submit new maintenance log
   const handleSubmitMaintenance = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/maintenance', {
+      const response = await fetch('http://localhost:8001/api/maintenance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -126,13 +121,12 @@ export default function MaintenanceRegistryLog() {
     }
   };
 
-  // 🟢 Submit edit maintenance log
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/maintenance/${editFormData.id}`, {
+      const response = await fetch(`http://localhost:8001/api/maintenance/${editFormData.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -164,14 +158,13 @@ export default function MaintenanceRegistryLog() {
     }
   };
 
-  // 🟢 Delete maintenance log
   const handleDelete = async (id) => {
     if (!window.confirm('Are you sure you want to delete this maintenance log?')) {
       return;
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/api/maintenance/${id}`, {
+      const response = await fetch(`http://localhost:8001/api/maintenance/${id}`, {
         method: 'DELETE'
       });
 
@@ -188,33 +181,28 @@ export default function MaintenanceRegistryLog() {
     }
   };
 
-// 🟢 Open edit modal with log data - FIXED
-const openEditModal = (log) => {
-  console.log('🔍 Opening edit modal for log:', log);
-  console.log('🔍 Vehicle ID from log:', log.vehicle_id, 'Type:', typeof log.vehicle_id);
-  
-  setSelectedLog(log);
-  setEditFormData({
-    id: log.id,
-    vehicle_id: String(log.vehicle_id || ''), // 🔴 IMPORTANT: Convert to string
-    category: log.category || '',
-    service_date: log.service_date || '',
-    cost: log.cost || '',
-    status: log.status || 'In Progress',
-    description: log.description || '',
-    maintenance_type: log.maintenance_type || ''
-  });
-  
-  console.log('📝 Edit form data set:', editFormData);
-  setIsEditModalOpen(true);
-};
-  // 🟢 Open view modal
+  const openEditModal = (log) => {
+    const formValues = {
+      id: log.id,
+      vehicle_id: String(log.vehicle_id || ''),
+      category: log.category || '',
+      service_date: log.service_date || '',
+      cost: log.cost || '',
+      status: log.status || 'In Progress',
+      description: log.description || '',
+      maintenance_type: log.maintenance_type || ''
+    };
+    
+    setSelectedLog(log);
+    setEditFormData(formValues);
+    setIsEditModalOpen(true);
+  };
+
   const openViewModal = (log) => {
     setSelectedLog(log);
     setIsViewModalOpen(true);
   };
 
-  // 🟢 Reset form
   const resetForm = () => {
     setFormData({
       vehicle_id: '',
@@ -227,7 +215,6 @@ const openEditModal = (log) => {
     });
   };
 
-  // 🟢 Filter and search logs
   const filteredLogs = maintenanceLogs.filter(log => {
     const matchesSearch = 
       (log.vehicle_id?.toString().toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -240,14 +227,10 @@ const openEditModal = (log) => {
     return matchesSearch && matchesStatus;
   });
 
-  // 🟢 Get vehicle details for display
   const getVehicleDetails = (vehicleId) => {
     return vehicles.find(v => v.id === vehicleId);
   };
 
-  // ==================== EXPORT FUNCTIONS ====================
-
-  // 1. Export to CSV
   const exportToCSV = () => {
     const headers = ['Log ID', 'Vehicle ID', 'License Plate', 'Category', 'Description', 'Service Date', 'Cost', 'Status'];
     
@@ -282,7 +265,6 @@ const openEditModal = (log) => {
     setIsExportMenuOpen(false);
   };
 
-  // 2. Export to Excel
   const exportToExcel = () => {
     try {
       const excelData = maintenanceLogs.map(log => {
@@ -361,7 +343,6 @@ const openEditModal = (log) => {
     }
   };
 
-  // 3. Export to PDF
   const exportToPDF = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -444,7 +425,6 @@ const openEditModal = (log) => {
     setIsExportMenuOpen(false);
   };
 
-  // 4. Export to JSON
   const exportToJSON = () => {
     const jsonData = maintenanceLogs.map(log => {
       const vehicle = getVehicleDetails(log.vehicle_id);
@@ -467,7 +447,6 @@ const openEditModal = (log) => {
     setIsExportMenuOpen(false);
   };
 
-  // 5. Export Current View (CSV)
   const exportCurrentView = () => {
     const headers = ['Log ID', 'Vehicle ID', 'License Plate', 'Category', 'Description', 'Service Date', 'Cost', 'Status'];
     
@@ -508,7 +487,6 @@ const openEditModal = (log) => {
     setIsExportMenuOpen(false);
   };
 
-  // 6. Export Current View to Excel
   const exportCurrentViewToExcel = () => {
     try {
       const excelData = filteredLogs.map(log => {
@@ -582,11 +560,8 @@ const openEditModal = (log) => {
     }
   };
 
-  // ==================== RENDER ====================
-
   return (
     <PageWrapper>
-      {/* Header */}
       <HeaderControl>
         <TitleBlock>
           <h1>
@@ -602,7 +577,6 @@ const openEditModal = (log) => {
         </AddButton>
       </HeaderControl>
 
-      {/* Stats Summary - Same as before */}
       <StatsGrid>
         <StatCard>
           <IconBox bg="#eff6ff" color="#2563eb">
@@ -669,7 +643,6 @@ const openEditModal = (log) => {
         </StatCard>
       </StatsGrid>
 
-      {/* Table Section with Export Dropdown */}
       <TableCardSection>
         <TableTopbarControls>
           <div className="title-area">
@@ -710,7 +683,6 @@ const openEditModal = (log) => {
               <option value="Pending">Pending</option>
             </select>
             
-            {/* Export Button with Dropdown */}
             <div className="export-wrapper">
               <button 
                 className="btn-action-util export-btn"
@@ -843,7 +815,7 @@ const openEditModal = (log) => {
         </TableResponsiveWrapper>
       </TableCardSection>
 
-      {/* ============ ADD MODAL ============ */}
+      {/* ADD MODAL */}
       {isModalOpen && (
         <ModalOverlay onClick={() => setIsModalOpen(false)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
@@ -982,150 +954,146 @@ const openEditModal = (log) => {
         </ModalOverlay>
       )}
 
-  {/* ============ EDIT MODAL ============ */}
-{isEditModalOpen && (
-  <ModalOverlay onClick={() => setIsEditModalOpen(false)}>
-    <ModalContent onClick={(e) => e.stopPropagation()}>
-      <ModalHeader>
-        <div>
-          <h5>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{marginRight: '8px', verticalAlign: 'middle', color: '#d97706'}}>
-              <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-            </svg>
-            Edit Maintenance Log
-          </h5>
-          <p className="modal-subtitle">Update maintenance record details.</p>
-        </div>
-        <button type="button" className="close-x-btn" onClick={() => setIsEditModalOpen(false)}>✕</button>
-      </ModalHeader>
+      {/* EDIT MODAL */}
+      {isEditModalOpen && (
+        <ModalOverlay onClick={() => setIsEditModalOpen(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <ModalHeader>
+              <div>
+                <h5>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{marginRight: '8px', verticalAlign: 'middle', color: '#d97706'}}>
+                    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                  </svg>
+                  Edit Maintenance Log
+                </h5>
+                <p className="modal-subtitle">Update maintenance record details.</p>
+              </div>
+              <button type="button" className="close-x-btn" onClick={() => setIsEditModalOpen(false)}>✕</button>
+            </ModalHeader>
 
-      <ModalBody>
-        <form onSubmit={handleEditSubmit}>
-          <FormRow>
-            <FormGroup>
-              <label htmlFor="edit_vehicle_id">Target Fleet Vehicle</label>
-              <select 
-                id="vehicle_id"
-                value={editFormData.vehicle_id || ''}  // 🔴 Fallback to empty string
-                onChange={handleEditFormChange}
-                required
-              >
-                <option value="">Select target asset...</option>
-                {vehicles.map((vehicle) => (
-                  <option key={vehicle.id} value={String(vehicle.id)}>  {/* 🔴 String conversion */}
-                    {vehicle.vehicle_id} [{vehicle.license_plate}] - {vehicle.company_name}
-                  </option>
-                ))}
-              </select>
-              {/* 🔴 Debug info - remove after fixing */}
-              <small style={{color: '#94a3b8', marginTop: '4px', display: 'block'}}>
-                Selected Value: {editFormData.vehicle_id || 'none'} (Type: {typeof editFormData.vehicle_id})
-              </small>
-            </FormGroup>
-            <FormGroup>
-              <label htmlFor="category">Service Category</label>
-              <select 
-                id="category" 
-                value={editFormData.category} 
-                onChange={handleEditFormChange}
-                required
-              >
-                <option value="">Select category</option>
-                <option value="Routine">🛠️ Scheduled / Routine Maintenance</option>
-                <option value="Breakdown">⚠️ Unscheduled Breakdown Repair</option>
-                <option value="Inspection">🔍 Inspection / Diagnostic</option>
-              </select>
-            </FormGroup>
-          </FormRow>
+            <ModalBody>
+              <form onSubmit={handleEditSubmit}>
+                <FormRow>
+                  <FormGroup>
+                    <label htmlFor="edit_vehicle_id">Target Fleet Vehicle</label>
+                    <select 
+                      id="vehicle_id"
+                      value={editFormData.vehicle_id || ''}
+                      onChange={handleEditFormChange}
+                      required
+                    >
+                      <option value="">Select target asset...</option>
+                      {vehicles.map((vehicle) => (
+                        <option key={vehicle.id} value={String(vehicle.id)}>
+                          {vehicle.vehicle_id} [{vehicle.license_plate}] - {vehicle.company_name}
+                        </option>
+                      ))}
+                    </select>
+                  </FormGroup>
+                  <FormGroup>
+                    <label htmlFor="category">Service Category</label>
+                    <select 
+                      id="category" 
+                      value={editFormData.category} 
+                      onChange={handleEditFormChange}
+                      required
+                    >
+                      <option value="">Select category</option>
+                      <option value="Routine">🛠️ Scheduled / Routine Maintenance</option>
+                      <option value="Breakdown">⚠️ Unscheduled Breakdown Repair</option>
+                      <option value="Inspection">🔍 Inspection / Diagnostic</option>
+                    </select>
+                  </FormGroup>
+                </FormRow>
 
-          {/* Rest of the form remains same */}
-          <FormRow columns="3">
-            <FormGroup>
-              <label htmlFor="service_date">Date of Service</label>
-              <input 
-                type="date" 
-                id="service_date" 
-                value={editFormData.service_date || ''} 
-                onChange={handleEditFormChange}
-                required
-              />
-            </FormGroup>
-            <FormGroup>
-              <label htmlFor="cost">Total Cost (₹)</label>
-              <input 
-                type="number" 
-                id="cost" 
-                placeholder="e.g., 4500" 
-                value={editFormData.cost || ''} 
-                onChange={handleEditFormChange}
-                required
-              />
-            </FormGroup>
-            <FormGroup>
-              <label htmlFor="status">State Configuration</label>
-              <select 
-                id="status" 
-                value={editFormData.status} 
-                onChange={handleEditFormChange}
-              >
-                <option value="In Progress">⏳ In Progress</option>
-                <option value="Completed">✅ Completed</option>
-                <option value="Pending">⏰ Pending</option>
-              </select>
-            </FormGroup>
-          </FormRow>
+                <FormRow columns="3">
+                  <FormGroup>
+                    <label htmlFor="service_date">Date of Service</label>
+                    <input 
+                      type="date" 
+                      id="service_date" 
+                      value={editFormData.service_date || ''} 
+                      onChange={handleEditFormChange}
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <label htmlFor="cost">Total Cost (₹)</label>
+                    <input 
+                      type="number" 
+                      id="cost" 
+                      placeholder="e.g., 4500" 
+                      value={editFormData.cost || ''} 
+                      onChange={handleEditFormChange}
+                      required
+                    />
+                  </FormGroup>
+                  <FormGroup>
+                    <label htmlFor="status">State Configuration</label>
+                    <select 
+                      id="status" 
+                      value={editFormData.status} 
+                      onChange={handleEditFormChange}
+                    >
+                      <option value="In Progress">⏳ In Progress</option>
+                      <option value="Completed">✅ Completed</option>
+                      <option value="Pending">⏰ Pending</option>
+                    </select>
+                  </FormGroup>
+                </FormRow>
 
-          <FormGroup style={{ marginTop: '8px' }}>
-            <label htmlFor="description">Detailed Logs &amp; Diagnostics</label>
-            <textarea 
-              id="description" 
-              rows="3" 
-              placeholder="Specify parts replaced..."
-              value={editFormData.description || ''}
-              onChange={handleEditFormChange}
-              required
-            />
-          </FormGroup>
+                <FormGroup style={{ marginTop: '8px' }}>
+                  <label htmlFor="description">Detailed Logs &amp; Diagnostics</label>
+                  <textarea 
+                    id="description" 
+                    rows="3" 
+                    placeholder="Specify parts replaced..."
+                    value={editFormData.description || ''}
+                    onChange={handleEditFormChange}
+                    required
+                  />
+                </FormGroup>
 
-          <FormRow style={{ marginTop: '16px' }}>
-            <FormGroup>
-              <label htmlFor="maintenance_type">Maintenance Type</label>
-              <select 
-                id="maintenance_type" 
-                value={editFormData.maintenance_type || ''} 
-                onChange={handleEditFormChange}
-              >
-                <option value="">Select type</option>
-                <option value="Preventive">🔄 Preventive</option>
-                <option value="Corrective">🔧 Corrective</option>
-                <option value="Emergency">🚨 Emergency</option>
-              </select>
-            </FormGroup>
-          </FormRow>
+                <FormRow style={{ marginTop: '16px' }}>
+                  <FormGroup>
+                    <label htmlFor="maintenance_type">Maintenance Type</label>
+                    <select 
+                      id="maintenance_type" 
+                      value={editFormData.maintenance_type || ''} 
+                      onChange={handleEditFormChange}
+                    >
+                      <option value="">Select type</option>
+                      <option value="Preventive">🔄 Preventive</option>
+                      <option value="Corrective">🔧 Corrective</option>
+                      <option value="Emergency">🚨 Emergency</option>
+                    </select>
+                  </FormGroup>
+                </FormRow>
 
-          <ModalFooter>
-            <button 
-              type="button" 
-              className="btn-cancel" 
-              onClick={() => setIsEditModalOpen(false)}
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button 
-              type="submit" 
-              className="btn-submit"
-              disabled={loading}
-            >
-              {loading ? '⏳ Updating...' : 'Update Log Entry'}
-            </button>
-          </ModalFooter>
-        </form>
-      </ModalBody>
-    </ModalContent>
-  </ModalOverlay>
-)}
-      {/* ============ VIEW MODAL ============ */}
+                <ModalFooter>
+                  <button 
+                    type="button" 
+                    className="btn-cancel" 
+                    onClick={() => setIsEditModalOpen(false)}
+                    disabled={loading}
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="btn-submit"
+                    disabled={loading}
+                  >
+                    {loading ? '⏳ Updating...' : 'Update Log Entry'}
+                  </button>
+                </ModalFooter>
+              </form>
+            </ModalBody>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {/* VIEW MODAL */}
       {isViewModalOpen && selectedLog && (
         <ModalOverlay onClick={() => setIsViewModalOpen(false)}>
           <ModalContent onClick={(e) => e.stopPropagation()}>
@@ -1554,8 +1522,6 @@ const ActionButtonsWrapper = styled.div`
     .icon-btn-delete { color: #dc2626; &:hover { background: #fef2f2; border-color: #fca5a5; } }
 `;
 
-// ==================== MODAL STYLES ====================
-
 const ModalOverlay = styled.div`
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background-color: rgba(15, 23, 42, 0.3); backdrop-filter: blur(4px);
@@ -1607,8 +1573,6 @@ const ModalFooter = styled.div`
     .btn-submit { background-color: #2563eb; color: #ffffff; }
     .btn-edit { background-color: #d97706; color: #ffffff; }
 `;
-
-// ==================== VIEW MODAL STYLES ====================
 
 const ViewModalBody = styled.div` padding: 24px; max-height: 70vh; overflow-y: auto; `;
 

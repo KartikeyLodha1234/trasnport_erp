@@ -1,40 +1,45 @@
-from flask import request, jsonify
-from routes import vehicle_bp
+from fastapi import APIRouter, HTTPException
 from database import Database
 
+router = APIRouter()
 db = Database()
 
-@vehicle_bp.route('/', methods=['GET'])
+@router.get("")
+def get_vehicles_no_slash():
+    return get_vehicles()
+
+@router.get("/")
 def get_vehicles():
     try:
         vehicles = db.get_all_vehicles()
-        print(f"📥 Fetching vehicles: {len(vehicles)} found")
-        return jsonify({'success': True, 'data': vehicles, 'count': len(vehicles)})
+        return {'success': True, 'data': vehicles, 'count': len(vehicles)}
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@vehicle_bp.route('/<int:vehicle_id>', methods=['GET'])
-def get_vehicle(vehicle_id):
+@router.get("/{vehicle_id}")
+def get_vehicle(vehicle_id: int):
     try:
         vehicle = db.get_vehicle_by_id(vehicle_id)
         if not vehicle:
-            return jsonify({'success': False, 'message': 'Vehicle not found'}), 404
-        return jsonify({'success': True, 'data': vehicle})
+            raise HTTPException(status_code=404, detail="Vehicle not found")
+        return {'success': True, 'data': vehicle}
+    except HTTPException:
+        raise
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))
 
-@vehicle_bp.route('/', methods=['POST'])
-def create_vehicle():
+@router.post("")
+def create_vehicle_no_slash(data: dict):
+    return create_vehicle(data)
+
+@router.post("/")
+def create_vehicle(data: dict):
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'message': 'No data provided'}), 400
-        
         required = ['vehicleId', 'vehicleType', 'companyName', 'modelYear', 'licensePlate']
         for field in required:
             if not data.get(field):
-                return jsonify({'success': False, 'message': f'{field} is required'}), 400
-        
+                raise HTTPException(status_code=400, detail=f'{field} is required')
+
         vehicle_data = {
             'vehicle_id': data.get('vehicleId'),
             'type': data.get('vehicleType'),
@@ -44,68 +49,52 @@ def create_vehicle():
             'puc_certificate_number': data.get('pucNumber'),
             'notes': data.get('notes', '')
         }
-        
+
         vehicle_id = db.create_vehicle(vehicle_data)
         if vehicle_id:
-            return jsonify({
-                'success': True,
-                'message': 'Vehicle added successfully',
-                'id': vehicle_id,
-                'data': db.get_vehicle_by_id(vehicle_id)
-            }), 201
-        return jsonify({'success': False, 'message': 'Failed to add vehicle'}), 500
-        
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+            return {'success': True, 'message': 'Vehicle added', 'id': vehicle_id, 'data': db.get_vehicle_by_id(vehicle_id)}
+        raise HTTPException(status_code=500, detail="Failed to add vehicle")
 
-@vehicle_bp.route('/<int:vehicle_id>', methods=['PUT'])
-def update_vehicle(vehicle_id):
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/{vehicle_id}")
+def update_vehicle(vehicle_id: int, data: dict):
     try:
-        data = request.get_json()
-        if not data:
-            return jsonify({'success': False, 'message': 'No data provided'}), 400
-        
         if not db.get_vehicle_by_id(vehicle_id):
-            return jsonify({'success': False, 'message': 'Vehicle not found'}), 404
-        
+            raise HTTPException(status_code=404, detail="Vehicle not found")
+
         vehicle_data = {}
         field_mapping = {
-            'vehicleId': 'vehicle_id',
-            'vehicleType': 'type',
-            'companyName': 'company_name',
-            'modelYear': 'year',
-            'licensePlate': 'license_plate',
-            'pucNumber': 'puc_certificate_number',
+            'vehicleId': 'vehicle_id', 'vehicleType': 'type',
+            'companyName': 'company_name', 'modelYear': 'year',
+            'licensePlate': 'license_plate', 'pucNumber': 'puc_certificate_number',
             'notes': 'notes'
         }
-        
         for front_field, db_field in field_mapping.items():
             if data.get(front_field) is not None:
                 vehicle_data[db_field] = data.get(front_field)
-        
-        if db.update_vehicle(vehicle_id, vehicle_data):
-            return jsonify({
-                'success': True,
-                'message': 'Vehicle updated successfully',
-                'data': db.get_vehicle_by_id(vehicle_id)
-            })
-        return jsonify({'success': False, 'message': 'Failed to update vehicle'}), 400
-        
-    except Exception as e:
-        print(f"❌ Error: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
 
-@vehicle_bp.route('/<int:vehicle_id>', methods=['DELETE'])
-def delete_vehicle(vehicle_id):
+        if db.update_vehicle(vehicle_id, vehicle_data):
+            return {'success': True, 'message': 'Vehicle updated', 'data': db.get_vehicle_by_id(vehicle_id)}
+        raise HTTPException(status_code=400, detail="Failed to update vehicle")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.delete("/{vehicle_id}")
+def delete_vehicle(vehicle_id: int):
     try:
         if not db.get_vehicle_by_id(vehicle_id):
-            return jsonify({'success': False, 'message': 'Vehicle not found'}), 404
-        
+            raise HTTPException(status_code=404, detail="Vehicle not found")
         if db.delete_vehicle(vehicle_id):
-            return jsonify({'success': True, 'message': 'Vehicle deleted successfully'})
-        return jsonify({'success': False, 'message': 'Failed to delete vehicle'}), 400
-        
+            return {'success': True, 'message': 'Vehicle deleted'}
+        raise HTTPException(status_code=400, detail="Failed to delete vehicle")
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"❌ Error: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
+        raise HTTPException(status_code=500, detail=str(e))

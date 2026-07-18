@@ -1,944 +1,980 @@
--- phpMyAdmin SQL Dump
--- version 5.2.3
--- https://www.phpmyadmin.net/
---
--- Host: localhost:3306
--- Generation Time: Jul 06, 2026 at 01:40 PM
--- Server version: 8.4.3
--- PHP Version: 8.3.30
-
-SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
-START TRANSACTION;
-SET time_zone = "+00:00";
-
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
-/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
-/*!40101 SET NAMES utf8mb4 */;
-
---
--- Database: `logistics_db`
---
-
--- --------------------------------------------------------
-
---
--- Table structure for table `admins`
---
-
-CREATE TABLE `admins` (
-  `id` int NOT NULL,
-  `email` varchar(100) NOT NULL,
-  `full_name` varchar(100) NOT NULL,
-  `phone` varchar(15) DEFAULT NULL,
-  `password_hash` varchar(255) NOT NULL,
-  `profile_picture` varchar(255) DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
-  `last_login` timestamp NULL DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `admins`
---
-
-INSERT INTO `admins` (`id`, `email`, `full_name`, `phone`, `password_hash`, `profile_picture`, `is_active`, `last_login`, `created_at`, `updated_at`) VALUES
-(1, 'admin@transporterp.com', 'Updated Admin Name', '9876543212', '$2a$10$NewHashedPassword', '/uploads/admin-profile.jpg', 0, '2026-07-06 13:16:17', '2026-07-06 13:16:17', '2026-07-06 13:16:17'),
-(2, 'manager@transporterp.com', 'Manager User', '9876543211', '$2a$10$YourHashedPasswordHere', NULL, 1, NULL, '2026-07-06 13:16:17', '2026-07-06 13:16:17');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `admin_activities`
---
-
-CREATE TABLE `admin_activities` (
-  `id` int NOT NULL,
-  `admin_id` int NOT NULL,
-  `activity_type` enum('login','logout','profile_update','password_change','login_failed') NOT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `user_agent` text,
-  `details` json DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `admin_activities`
---
-
-INSERT INTO `admin_activities` (`id`, `admin_id`, `activity_type`, `ip_address`, `user_agent`, `details`, `created_at`) VALUES
-(1, 1, 'login', '192.168.1.1', 'Mozilla/5.0...', '{\"login_time\": \"2026-07-06 18:46:17.000000\"}', '2026-07-06 13:16:17');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `admin_password_resets`
---
-
-CREATE TABLE `admin_password_resets` (
-  `id` int NOT NULL,
-  `admin_id` int NOT NULL,
-  `token` varchar(255) NOT NULL,
-  `expires_at` timestamp NOT NULL,
-  `used` tinyint(1) DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `admin_password_resets`
---
-
-INSERT INTO `admin_password_resets` (`id`, `admin_id`, `token`, `expires_at`, `used`, `created_at`) VALUES
-(1, 1, 'reset_token_here', '2026-07-06 14:16:17', 1, '2026-07-06 13:16:17');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `admin_sessions`
---
-
-CREATE TABLE `admin_sessions` (
-  `id` int NOT NULL,
-  `admin_id` int NOT NULL,
-  `token` varchar(255) NOT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `user_agent` text,
-  `expires_at` timestamp NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `admin_sessions`
---
-
-INSERT INTO `admin_sessions` (`id`, `admin_id`, `token`, `ip_address`, `user_agent`, `expires_at`, `created_at`) VALUES
-(1, 1, 'session_token_here', '192.168.1.1', 'Mozilla/5.0...', '2026-07-13 13:16:17', '2026-07-06 13:16:17');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `admin_wallet`
---
-
-CREATE TABLE `admin_wallet` (
-  `id` int NOT NULL,
-  `balance` decimal(10,2) NOT NULL DEFAULT '0.00',
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `city`
---
-
-CREATE TABLE `city` (
-  `city_id` int NOT NULL,
-  `city_name` varchar(255) NOT NULL,
-  `state` varchar(255) DEFAULT NULL,
-  `country` varchar(255) DEFAULT NULL,
-  `pin_code` varchar(20) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `client`
---
-
-CREATE TABLE `client` (
-  `client_id` int NOT NULL,
-  `company_name` varchar(255) NOT NULL,
-  `email` varchar(255) DEFAULT NULL,
-  `contact_person` varchar(255) DEFAULT NULL,
-  `phone` varchar(20) DEFAULT NULL,
-  `vehicles` int DEFAULT '0',
-  `status` varchar(20) DEFAULT 'Active'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `company_profiles`
---
-
-CREATE TABLE `company_profiles` (
-  `id` int NOT NULL,
-  `company_name` varchar(100) NOT NULL,
-  `owner_name` varchar(100) DEFAULT NULL,
-  `phone` varchar(15) DEFAULT NULL,
-  `gstin` varchar(15) DEFAULT NULL,
-  `pan_number` varchar(10) DEFAULT NULL,
-  `address` text,
-  `city` varchar(50) NOT NULL,
-  `state` varchar(50) NOT NULL,
-  `pincode` varchar(6) NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `company_profiles`
---
-
-INSERT INTO `company_profiles` (`id`, `company_name`, `owner_name`, `phone`, `gstin`, `pan_number`, `address`, `city`, `state`, `pincode`, `created_at`, `updated_at`) VALUES
-(1, 'Transport', '', '', '', '', '', '', '', '', '2026-07-06 12:59:12', '2026-07-06 12:59:12'),
-(2, 'ABC Transport', 'Rahul Sharma', '9876543210', 'GSTIN12345', 'PAN12345', '123 Main Road, Andheri', 'Mumbai', 'Maharashtra', '400001', '2026-07-06 12:59:12', '2026-07-06 12:59:12'),
-(3, 'XYZ Logistics', 'Priya Patel', '9876543211', 'GSTIN67890', 'PAN67890', '456 Park Street', 'Delhi', 'Delhi', '110001', '2026-07-06 12:59:12', '2026-07-06 12:59:12'),
-(4, 'Transport', '', '', '', '', '', '', '', '', '2026-07-06 12:59:25', '2026-07-06 12:59:25'),
-(5, 'ABC Transport', 'Rahul Sharma', '9876543210', 'GSTIN12345', 'PAN12345', '123 Main Road, Andheri', 'Mumbai', 'Maharashtra', '400001', '2026-07-06 12:59:25', '2026-07-06 12:59:25'),
-(6, 'XYZ Logistics', 'Priya Patel', '9876543211', 'GSTIN67890', 'PAN67890', '456 Park Street', 'Delhi', 'Delhi', '110001', '2026-07-06 12:59:25', '2026-07-06 12:59:25');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `drivers`
---
-
-CREATE TABLE `drivers` (
-  `id` int NOT NULL,
-  `full_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `email` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `phone` varchar(20) COLLATE utf8mb4_general_ci NOT NULL,
-  `password` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `dob` date DEFAULT NULL,
-  `experience` int NOT NULL,
-  `license_number` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
-  `bank_name` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `account_number` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `ifsc_code` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `bank_branch` varchar(100) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `aadhar_card` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `pan_card` varchar(20) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `medical_report` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `police_verification` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `license_file_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `police_file_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `bank_file_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `medical_file_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `aadhar_file_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `wallet_balance` decimal(10,2) DEFAULT '0.00'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `drivers`
---
-
-INSERT INTO `drivers` (`id`, `full_name`, `email`, `phone`, `password`, `dob`, `experience`, `license_number`, `bank_name`, `account_number`, `ifsc_code`, `bank_branch`, `aadhar_card`, `pan_card`, `medical_report`, `police_verification`, `license_file_path`, `police_file_path`, `bank_file_path`, `medical_file_path`, `aadhar_file_path`, `created_at`, `wallet_balance`) VALUES
-(4, 'ayush jain', 'ayush@gmail.com', '7894561230', 'ayush@gmail.com', NULL, 9, 'RJ-06-2026-0012', 'airtel', '7894561230', '7894561230', 'airtel', '9638527410', 'abcd4908l', 'Approved', 'Approved', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782371146564-aa.jfif', NULL, NULL, NULL, NULL, '2026-06-25 07:05:46', 0.00),
-(5, 'krish dixit', 'krish@gmail.com', '9001111442', 'krish@gmail.com', '1998-06-18', 1, 'RJ-06-2026-0016', 'airtel', '9001111442', '9001111442', 'jaipur', '75321468077', 'abcd12345l', 'Approved', 'Approved', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782375332464-aa.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782375332464-images.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782375332464-bank.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782375332464-medical.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782375332464-addhar.jfif', '2026-06-25 08:15:32', 0.00),
-(6, 'kamlesh', 'kamlesh@gmail.com', '9090604010', 'kamlesh@gmail.com', '1978-06-09', 15, 'RJ-06-2026-0023', 'kotak', '909090905060', 'SBIN0001234', 'jaipur', '852963741035', 'xcxdcsdfsgv32154564v', 'Approved', 'Approved', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782377681175-aa.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782377681175-images.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782377681175-bank.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782377681175-medical.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782377681175-addhar.jfif', '2026-06-25 08:54:41', 0.00),
-(7, 'anurag', 'anurag.sharma@gmail.com', '7891050002', 'anurag.sharma@gmail.com', '1970-09-09', 20, 'RJ06-2022020', 'sbi', '123154541612318421698751', 'SBIN0001255', 'jaipur', '2971-8974-1318', '15456465', 'Approved', 'Approved', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782381252736-aa.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782381252736-images.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782381252736-bank.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782381252736-medical.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782381252736-addhar.jfif', '2026-06-25 09:54:12', 0.00),
-(8, 'yash', 'yash@gmail.com', '8305517777', 'yash@gmail.com', '1975-07-17', 9, 'RJ-06-2026-0542', 'union', '741085209630', 'inoin06060', 'jaipur', '2971-8974-1318', '15456465', 'Approved', 'Approved', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782382113401-aa.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782382113401-images.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782382113401-bank.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782382113401-medical.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782382113401-addhar.jfif', '2026-06-25 10:08:33', 0.00),
-(9, 'Aman', 'aman@gmail.com', '8945612370', 'aman@gmail.com', '1999-01-03', 3, 'RJ06-2022001', 'sbi', 'ama@gmail.com', 'SBIN0001234', 'jaipur', 'ama@gmail.com', '15456465', 'Approved', 'Approved', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782458006455-aa.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782458006455-images.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782458006455-medical.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782458006455-bank.jfif', 'https://my-fleet-bucket.s3.amazonaws.com/drivers/1782458006455-addhar.jfif', '2026-06-26 07:13:26', 0.00);
-
--- --------------------------------------------------------
-
---
--- Table structure for table `lrs`
---
-
-CREATE TABLE `lrs` (
-  `id` bigint UNSIGNED NOT NULL,
-  `lr_number` varchar(50) NOT NULL,
-  `booking_date` varchar(15) NOT NULL,
-  `branch_id` bigint UNSIGNED DEFAULT NULL,
-  `from_city` varchar(100) NOT NULL,
-  `to_city` varchar(100) NOT NULL,
-  `consignor_id` bigint UNSIGNED NOT NULL,
-  `consignee_id` bigint UNSIGNED NOT NULL,
-  `goods_desc` varchar(255) NOT NULL,
-  `packages` int DEFAULT '0',
-  `weight` decimal(10,2) DEFAULT '0.00',
-  `weight_type` enum('kg','ton') DEFAULT 'kg',
-  `invoice_no` varchar(100) DEFAULT NULL,
-  `invoice_value` decimal(12,2) DEFAULT '0.00',
-  `eway_bill` varchar(12) DEFAULT NULL,
-  `payment_type` enum('paid','topay','tbb') NOT NULL,
-  `freight_amount` decimal(10,2) NOT NULL,
-  `loading_charges` decimal(10,2) DEFAULT '0.00',
-  `unloading_charges` decimal(10,2) DEFAULT '0.00',
-  `other_charges` decimal(10,2) DEFAULT '0.00',
-  `discount` decimal(10,2) DEFAULT '0.00',
-  `gst_applicable` tinyint(1) DEFAULT '0',
-  `gst_type` enum('igst','cgst_sgst') DEFAULT 'igst',
-  `cgst_amount` decimal(10,2) DEFAULT '0.00',
-  `sgst_amount` decimal(10,2) DEFAULT '0.00',
-  `igst_amount` decimal(10,2) DEFAULT '0.00',
-  `total_amount` decimal(12,2) NOT NULL,
-  `remarks` text,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `maintenance_logs`
---
-
-CREATE TABLE `maintenance_logs` (
-  `id` int NOT NULL,
-  `vehicle_id` int NOT NULL,
-  `maintenance_type` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `category` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `description` text COLLATE utf8mb4_general_ci,
-  `service_date` date DEFAULT NULL,
-  `cost` decimal(10,2) DEFAULT '0.00',
-  `status` varchar(50) COLLATE utf8mb4_general_ci DEFAULT 'In Progress',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `maintenance_logs`
---
-
-INSERT INTO `maintenance_logs` (`id`, `vehicle_id`, `maintenance_type`, `category`, `description`, `service_date`, `cost`, `status`, `created_at`, `updated_at`) VALUES
-(1, 1, 'Preventive', 'Breakdown', 'cdc', '5555-05-01', 4564312.00, 'Completed', '2026-06-27 06:18:56', '2026-06-27 06:23:53');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `operators`
---
-
-CREATE TABLE `operators` (
-  `operator_id` int NOT NULL,
-  `username` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `email` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
-  `password_hash` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `role` varchar(20) COLLATE utf8mb4_general_ci DEFAULT 'operator',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `operators`
---
-
-INSERT INTO `operators` (`operator_id`, `username`, `email`, `password_hash`, `role`, `created_at`) VALUES
-(1, 'admin', 'admin@cargomax.com', '$2b$10$hashedstring...', 'admin', '2026-06-26 08:59:05');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `password_reset_tokens`
---
-
-CREATE TABLE `password_reset_tokens` (
-  `id` int NOT NULL,
-  `user_id` int NOT NULL,
-  `token` varchar(255) NOT NULL,
-  `expires_at` timestamp NOT NULL,
-  `used` tinyint(1) DEFAULT '0',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `payments`
---
-
-CREATE TABLE `payments` (
-  `id` int NOT NULL,
-  `driver_id` int NOT NULL,
-  `shipment_id` int DEFAULT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `checkpoint` varchar(255) DEFAULT NULL,
-  `upi_id` varchar(255) DEFAULT NULL,
-  `upi_ref` varchar(255) DEFAULT NULL,
-  `note` text,
-  `status` enum('pending','completed','failed') DEFAULT 'pending',
-  `paid_by` varchar(255) DEFAULT 'admin',
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `shipments`
---
-
-CREATE TABLE `shipments` (
-  `id` int NOT NULL,
-  `tracking_id` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `destination` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `client` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `weight` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `driver_id` int DEFAULT NULL,
-  `vehicle_id` int DEFAULT NULL,
-  `eta` datetime DEFAULT NULL,
-  `status` varchar(50) COLLATE utf8mb4_general_ci DEFAULT 'Loading',
-  `notes` text COLLATE utf8mb4_general_ci,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `challan_number` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `pickup_location` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `delivery_location` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `freight_charge` decimal(10,2) DEFAULT '0.00',
-  `gst` decimal(5,2) DEFAULT '0.00',
-  `payment_mode` varchar(50) COLLATE utf8mb4_general_ci DEFAULT 'cash'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `shipments`
---
-
-INSERT INTO `shipments` (`id`, `tracking_id`, `destination`, `client`, `weight`, `driver_id`, `vehicle_id`, `eta`, `status`, `notes`, `created_at`, `updated_at`, `challan_number`, `pickup_location`, `delivery_location`, `freight_charge`, `gst`, `payment_mode`) VALUES
-(1, 'TRK-0001', 'udaipur', 'kartikey', '50', 9, 1, '2026-06-23 14:41:00', 'Delivered', 'ok', '2026-06-27 06:43:03', '2026-06-27 10:03:55', NULL, NULL, NULL, 0.00, 0.00, 'cash'),
-(2, 'TRK-0002', 'jodhpur', 'aun', '90', 8, 1, '2026-06-29 15:49:00', 'Delivered', '', '2026-06-27 08:19:37', '2026-06-27 10:03:55', NULL, NULL, NULL, 0.00, 0.00, 'cash'),
-(3, 'TRK-0003', 'jaipur', '', NULL, 4, 1, '2026-06-30 03:08:00', 'In Transit', 'xsxs', '2026-06-27 08:38:11', '2026-06-27 13:04:15', NULL, NULL, NULL, 0.00, 0.00, 'cash'),
-(4, 'TRK-0004', 'jaipur', 'kamalesh', '12000', 7, 1, '0000-00-00 00:00:00', 'In Transit', '', '2026-06-27 08:44:34', '2026-06-27 10:03:55', NULL, NULL, NULL, 0.00, 0.00, 'cash'),
-(5, 'TRK-0005', 'kolkata', 'ok', '10000', 6, 1, '0000-00-00 00:00:00', 'Delayed', '', '2026-06-27 08:48:04', '2026-06-27 10:03:55', NULL, NULL, NULL, 0.00, 0.00, 'cash'),
-(6, 'TRK-2026-0006', 'delhi', 'rajesh', NULL, 4, 1, '0000-00-00 00:00:00', 'Delivered', '', '2026-06-27 13:01:11', '2026-06-27 13:04:32', NULL, NULL, NULL, 0.00, 0.00, 'cash'),
-(7, 'TRK-2026-0007', 'kota', 'you', NULL, 4, 1, '0000-00-00 00:00:00', 'In Transit', '', '2026-06-27 13:04:59', '2026-06-27 13:04:59', NULL, NULL, NULL, 0.00, 0.00, 'cash'),
-(8, 'TRK-2026-0008', 'udaipur', 'kartikey', '', 8, 1, '2026-06-29 09:55:00', 'delivered', 'sas', '2026-06-29 09:55:37', '2026-06-29 09:57:12', 'CHL-20260629-4992', 'udaipur', '', 0.00, 0.00, 'cash');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `system_logs`
---
-
-CREATE TABLE `system_logs` (
-  `id` int NOT NULL,
-  `type` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `title` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `description` text COLLATE utf8mb4_general_ci,
-  `time` varchar(50) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `system_logs`
---
-
-INSERT INTO `system_logs` (`id`, `type`, `title`, `description`, `time`, `created_at`) VALUES
-(1, 'dispatch', '🚚 New Shipment Created', 'Shipment #1 dispatched to Mumbai', '2 mins ago', '2026-06-27 07:10:55'),
-(2, 'delivered', '✅ Shipment Delivered', 'Shipment #2 successfully delivered to Delhi', '15 mins ago', '2026-06-27 07:10:55'),
-(3, 'alert', '⚠️ Route Alert', 'Heavy traffic on NH-48, delays expected', '1 hour ago', '2026-06-27 07:10:55'),
-(4, 'maintenance', '🔧 Vehicle Maintenance', 'VH-203 service completed at workshop', '2 hours ago', '2026-06-27 07:10:55'),
-(5, 'dispatch', '📦 Shipment Dispatched', 'Shipment #3 assigned to Rajesh Kumar', '3 hours ago', '2026-06-27 07:10:55'),
-(6, 'delivered', '✅ Delivery Confirmed', 'Shipment #4 delivered to Bangalore warehouse', '5 hours ago', '2026-06-27 07:10:55'),
-(7, 'alert', '⚠️ Weather Alert', 'Rain expected in Mumbai region', '6 hours ago', '2026-06-27 07:10:55'),
-(8, 'dispatch', '🚚 New Shipment Created', 'Shipment #5 dispatched to Chennai Port', '8 hours ago', '2026-06-27 07:10:55'),
-(9, 'maintenance', '🔧 Tire Replacement', 'VH-201 tires replaced', '1 day ago', '2026-06-27 07:10:55'),
-(10, 'delivered', '✅ Shipment Delivered', 'Shipment #6 delivered to Hyderabad', '1 day ago', '2026-06-27 07:10:55'),
-(11, 'dispatch', '🚚 New Shipment Created', 'Shipment #3 dispatched to jaipur', '02:08 pm', '2026-06-27 08:38:11'),
-(12, 'dispatch', '✏️ Shipment Updated', 'Shipment #2 status changed to Delivered', '02:11 pm', '2026-06-27 08:41:42'),
-(13, 'dispatch', '✏️ Shipment Updated', 'Shipment #1 status changed to Delivered', '02:14 pm', '2026-06-27 08:44:05'),
-(14, 'dispatch', '✏️ Shipment Updated', 'Shipment #2 status changed to Delivered', '02:14 pm', '2026-06-27 08:44:14'),
-(15, 'dispatch', '🚚 New Shipment Created', 'Shipment #4 dispatched to jaipur', '02:14 pm', '2026-06-27 08:44:34'),
-(16, 'dispatch', '🚚 New Shipment Created', 'Shipment #5 dispatched to kolkata', '02:18 pm', '2026-06-27 08:48:04'),
-(17, 'dispatch', '🚚 New Shipment Created', 'Shipment #6 dispatched to delhi', '06:31 pm', '2026-06-27 13:01:11'),
-(18, 'dispatch', '✏️ Shipment Updated', 'Shipment #3 status changed to In Transit', '06:34 pm', '2026-06-27 13:04:15'),
-(19, 'dispatch', '✏️ Shipment Updated', 'Shipment #6 status changed to Delivered', '06:34 pm', '2026-06-27 13:04:32'),
-(20, 'dispatch', '🚚 New Shipment Created', 'Shipment #7 dispatched to kota', '06:34 pm', '2026-06-27 13:04:59'),
-(21, 'dispatch', '🚚 New Shipment Created', 'Shipment #undefined dispatched to udaipur', '03:25 pm', '2026-06-29 09:55:37');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `transactions`
---
-
-CREATE TABLE `transactions` (
-  `id` int NOT NULL,
-  `transaction_id` varchar(50) NOT NULL,
-  `user_id` int DEFAULT NULL,
-  `driver_id` int DEFAULT NULL,
-  `shipment_id` int DEFAULT NULL,
-  `type` enum('credit','debit','refund','payment') NOT NULL,
-  `amount` decimal(10,2) NOT NULL,
-  `description` varchar(255) DEFAULT NULL,
-  `status` enum('pending','completed','failed','processing') DEFAULT 'pending',
-  `payment_method` enum('cash','card','upi','bank_transfer','wallet') DEFAULT NULL,
-  `reference` varchar(100) DEFAULT NULL,
-  `metadata` json DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `transactions`
---
-
-INSERT INTO `transactions` (`id`, `transaction_id`, `user_id`, `driver_id`, `shipment_id`, `type`, `amount`, `description`, `status`, `payment_method`, `reference`, `metadata`, `created_at`, `updated_at`) VALUES
-(1, 'TXN-DEMO-001', NULL, 4, NULL, 'credit', 5000.00, 'Initial wallet credit', 'completed', 'wallet', NULL, NULL, '2026-07-06 05:56:18', '2026-07-06 05:56:18'),
-(2, 'TXN-DEMO-002', NULL, 5, NULL, 'credit', 2500.00, 'Payment received for shipment #TRK-0001', 'completed', 'upi', NULL, NULL, '2026-07-06 05:56:18', '2026-07-06 05:56:18'),
-(3, 'TXN-DEMO-003', NULL, 6, NULL, 'debit', 1200.00, 'Service charge deduction', 'completed', 'wallet', NULL, NULL, '2026-07-06 05:56:18', '2026-07-06 05:56:18'),
-(4, 'TXN-DEMO-004', NULL, 7, NULL, 'credit', 7500.00, 'Freight payment', 'pending', 'bank_transfer', NULL, NULL, '2026-07-06 05:56:18', '2026-07-06 05:56:18'),
-(5, 'TXN-DEMO-005', NULL, 8, NULL, 'credit', 3500.00, 'Payment for delivery', 'completed', 'cash', NULL, NULL, '2026-07-06 05:56:18', '2026-07-06 05:56:18'),
-(6, 'TXN-DEMO-006', NULL, 9, NULL, 'debit', 500.00, 'Penalty for delay', 'completed', 'wallet', NULL, NULL, '2026-07-06 05:56:18', '2026-07-06 05:56:18');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `users`
---
-
-CREATE TABLE `users` (
-  `id` int NOT NULL,
-  `email` varchar(100) NOT NULL,
-  `full_name` varchar(100) NOT NULL,
-  `role` enum('super_admin','admin','manager','driver','user') DEFAULT 'user',
-  `phone` varchar(15) DEFAULT NULL,
-  `password_hash` varchar(255) NOT NULL,
-  `profile_picture` varchar(255) DEFAULT NULL,
-  `is_active` tinyint(1) DEFAULT '1',
-  `email_verified` tinyint(1) DEFAULT '0',
-  `last_login` timestamp NULL DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `users`
---
-
-INSERT INTO `users` (`id`, `email`, `full_name`, `role`, `phone`, `password_hash`, `profile_picture`, `is_active`, `email_verified`, `last_login`, `created_at`, `updated_at`) VALUES
-(1, 'admin@transporterp.com', 'Admin User', 'super_admin', NULL, '$2a$10$YourHashedPasswordHere', NULL, 1, 1, NULL, '2026-07-06 13:15:33', '2026-07-06 13:15:33');
-
--- --------------------------------------------------------
-
---
--- Table structure for table `user_activities`
---
-
-CREATE TABLE `user_activities` (
-  `id` int NOT NULL,
-  `user_id` int NOT NULL,
-  `activity_type` enum('login','logout','profile_update','password_change','login_failed') NOT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `user_agent` text,
-  `details` json DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `user_sessions`
---
-
-CREATE TABLE `user_sessions` (
-  `id` int NOT NULL,
-  `user_id` int NOT NULL,
-  `token` varchar(255) NOT NULL,
-  `ip_address` varchar(45) DEFAULT NULL,
-  `user_agent` text,
-  `expires_at` timestamp NOT NULL,
-  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- --------------------------------------------------------
-
---
--- Table structure for table `vehicles`
---
-
-CREATE TABLE `vehicles` (
-  `id` int NOT NULL,
-  `vehicle_id` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
-  `type` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `company_name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL,
-  `year` varchar(4) COLLATE utf8mb4_general_ci NOT NULL,
-  `license_plate` varchar(50) COLLATE utf8mb4_general_ci NOT NULL,
-  `puc_certificate_number` varchar(100) COLLATE utf8mb4_general_ci NOT NULL,
-  `puc_expiry_date` date DEFAULT NULL,
-  `upload_puc_document_copy_file_path` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `notes` text COLLATE utf8mb4_general_ci,
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
---
--- Dumping data for table `vehicles`
---
-
-INSERT INTO `vehicles` (`id`, `vehicle_id`, `type`, `company_name`, `year`, `license_plate`, `puc_certificate_number`, `puc_expiry_date`, `upload_puc_document_copy_file_path`, `notes`, `created_at`) VALUES
-(1, 'TRK001', 'mini', 'KAMLESH', '2022', 'PUR', '13153jnl', NULL, NULL, 's', '2026-06-26 06:52:02');
-
---
--- Indexes for dumped tables
---
-
---
--- Indexes for table `admins`
---
-ALTER TABLE `admins`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD KEY `idx_email` (`email`),
-  ADD KEY `idx_is_active` (`is_active`);
-
---
--- Indexes for table `admin_activities`
---
-ALTER TABLE `admin_activities`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_admin_id` (`admin_id`),
-  ADD KEY `idx_created_at` (`created_at`);
-
---
--- Indexes for table `admin_password_resets`
---
-ALTER TABLE `admin_password_resets`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `token` (`token`),
-  ADD KEY `idx_token` (`token`),
-  ADD KEY `idx_admin_id` (`admin_id`),
-  ADD KEY `idx_expires_at` (`expires_at`);
-
---
--- Indexes for table `admin_sessions`
---
-ALTER TABLE `admin_sessions`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `token` (`token`),
-  ADD KEY `idx_token` (`token`),
-  ADD KEY `idx_admin_id` (`admin_id`),
-  ADD KEY `idx_expires_at` (`expires_at`);
-
---
--- Indexes for table `admin_wallet`
---
-ALTER TABLE `admin_wallet`
-  ADD PRIMARY KEY (`id`);
-
---
--- Indexes for table `city`
---
-ALTER TABLE `city`
-  ADD PRIMARY KEY (`city_id`);
-
---
--- Indexes for table `client`
---
-ALTER TABLE `client`
-  ADD PRIMARY KEY (`client_id`);
-
---
--- Indexes for table `company_profiles`
---
-ALTER TABLE `company_profiles`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_company_name` (`company_name`),
-  ADD KEY `idx_city` (`city`),
-  ADD KEY `idx_state` (`state`);
-
---
--- Indexes for table `drivers`
---
-ALTER TABLE `drivers`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`);
-
---
--- Indexes for table `lrs`
---
-ALTER TABLE `lrs`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `lr_number` (`lr_number`),
-  ADD KEY `idx_lr_number` (`lr_number`),
-  ADD KEY `idx_booking_date` (`booking_date`);
-
---
--- Indexes for table `maintenance_logs`
---
-ALTER TABLE `maintenance_logs`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `vehicle_id` (`vehicle_id`);
-
---
--- Indexes for table `operators`
---
-ALTER TABLE `operators`
-  ADD PRIMARY KEY (`operator_id`),
-  ADD UNIQUE KEY `username` (`username`),
-  ADD UNIQUE KEY `email` (`email`);
-
---
--- Indexes for table `password_reset_tokens`
---
-ALTER TABLE `password_reset_tokens`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `token` (`token`),
-  ADD KEY `idx_token` (`token`),
-  ADD KEY `idx_user_id` (`user_id`),
-  ADD KEY `idx_expires_at` (`expires_at`);
-
---
--- Indexes for table `payments`
---
-ALTER TABLE `payments`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `driver_id` (`driver_id`),
-  ADD KEY `shipment_id` (`shipment_id`);
-
---
--- Indexes for table `shipments`
---
-ALTER TABLE `shipments`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `driver_id` (`driver_id`),
-  ADD KEY `vehicle_id` (`vehicle_id`);
-
---
--- Indexes for table `system_logs`
---
-ALTER TABLE `system_logs`
-  ADD PRIMARY KEY (`id`);
-
---
--- Indexes for table `transactions`
---
-ALTER TABLE `transactions`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `transaction_id` (`transaction_id`),
-  ADD KEY `driver_id` (`driver_id`),
-  ADD KEY `shipment_id` (`shipment_id`),
-  ADD KEY `idx_transaction_id` (`transaction_id`),
-  ADD KEY `idx_type` (`type`),
-  ADD KEY `idx_status` (`status`),
-  ADD KEY `idx_created_at` (`created_at`);
-
---
--- Indexes for table `users`
---
-ALTER TABLE `users`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD KEY `idx_email` (`email`),
-  ADD KEY `idx_role` (`role`),
-  ADD KEY `idx_is_active` (`is_active`);
-
---
--- Indexes for table `user_activities`
---
-ALTER TABLE `user_activities`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `idx_user_id` (`user_id`),
-  ADD KEY `idx_activity_type` (`activity_type`),
-  ADD KEY `idx_created_at` (`created_at`);
-
---
--- Indexes for table `user_sessions`
---
-ALTER TABLE `user_sessions`
-  ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `token` (`token`),
-  ADD KEY `idx_token` (`token`),
-  ADD KEY `idx_user_id` (`user_id`),
-  ADD KEY `idx_expires_at` (`expires_at`);
-
---
--- Indexes for table `vehicles`
---
-ALTER TABLE `vehicles`
-  ADD PRIMARY KEY (`id`);
-
---
--- AUTO_INCREMENT for dumped tables
---
-
---
--- AUTO_INCREMENT for table `admins`
---
-ALTER TABLE `admins`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
-
---
--- AUTO_INCREMENT for table `admin_activities`
---
-ALTER TABLE `admin_activities`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT for table `admin_password_resets`
---
-ALTER TABLE `admin_password_resets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT for table `admin_sessions`
---
-ALTER TABLE `admin_sessions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT for table `admin_wallet`
---
-ALTER TABLE `admin_wallet`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `city`
---
-ALTER TABLE `city`
-  MODIFY `city_id` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `client`
---
-ALTER TABLE `client`
-  MODIFY `client_id` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `company_profiles`
---
-ALTER TABLE `company_profiles`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
-
---
--- AUTO_INCREMENT for table `drivers`
---
-ALTER TABLE `drivers`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
-
---
--- AUTO_INCREMENT for table `lrs`
---
-ALTER TABLE `lrs`
-  MODIFY `id` bigint UNSIGNED NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `maintenance_logs`
---
-ALTER TABLE `maintenance_logs`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT for table `operators`
---
-ALTER TABLE `operators`
-  MODIFY `operator_id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT for table `password_reset_tokens`
---
-ALTER TABLE `password_reset_tokens`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `payments`
---
-ALTER TABLE `payments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `shipments`
---
-ALTER TABLE `shipments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
-
---
--- AUTO_INCREMENT for table `system_logs`
---
-ALTER TABLE `system_logs`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=22;
-
---
--- AUTO_INCREMENT for table `transactions`
---
-ALTER TABLE `transactions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
-
---
--- AUTO_INCREMENT for table `users`
---
-ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- AUTO_INCREMENT for table `user_activities`
---
-ALTER TABLE `user_activities`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `user_sessions`
---
-ALTER TABLE `user_sessions`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
-
---
--- AUTO_INCREMENT for table `vehicles`
---
-ALTER TABLE `vehicles`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
-
---
--- Constraints for dumped tables
---
-
---
--- Constraints for table `admin_activities`
---
-ALTER TABLE `admin_activities`
-  ADD CONSTRAINT `admin_activities_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `admins` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `admin_password_resets`
---
-ALTER TABLE `admin_password_resets`
-  ADD CONSTRAINT `admin_password_resets_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `admins` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `admin_sessions`
---
-ALTER TABLE `admin_sessions`
-  ADD CONSTRAINT `admin_sessions_ibfk_1` FOREIGN KEY (`admin_id`) REFERENCES `admins` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `maintenance_logs`
---
-ALTER TABLE `maintenance_logs`
-  ADD CONSTRAINT `maintenance_logs_ibfk_1` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `password_reset_tokens`
---
-ALTER TABLE `password_reset_tokens`
-  ADD CONSTRAINT `password_reset_tokens_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `payments`
---
-ALTER TABLE `payments`
-  ADD CONSTRAINT `payments_ibfk_1` FOREIGN KEY (`driver_id`) REFERENCES `drivers` (`id`) ON DELETE CASCADE,
-  ADD CONSTRAINT `payments_ibfk_2` FOREIGN KEY (`shipment_id`) REFERENCES `shipments` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `shipments`
---
-ALTER TABLE `shipments`
-  ADD CONSTRAINT `shipments_ibfk_1` FOREIGN KEY (`driver_id`) REFERENCES `drivers` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `shipments_ibfk_2` FOREIGN KEY (`vehicle_id`) REFERENCES `vehicles` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `transactions`
---
-ALTER TABLE `transactions`
-  ADD CONSTRAINT `transactions_ibfk_1` FOREIGN KEY (`driver_id`) REFERENCES `drivers` (`id`) ON DELETE SET NULL,
-  ADD CONSTRAINT `transactions_ibfk_2` FOREIGN KEY (`shipment_id`) REFERENCES `shipments` (`id`) ON DELETE SET NULL;
-
---
--- Constraints for table `user_activities`
---
-ALTER TABLE `user_activities`
-  ADD CONSTRAINT `user_activities_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-
---
--- Constraints for table `user_sessions`
---
-ALTER TABLE `user_sessions`
-  ADD CONSTRAINT `user_sessions_ibfk_1` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
-COMMIT;
-
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+-- =============================================
+-- Table: admins
+-- =============================================
+CREATE TABLE admins (
+    id INT IDENTITY(1,1) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(15) NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    profile_picture VARCHAR(255) NULL,
+    is_active BIT DEFAULT 1,
+    last_login DATETIME NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_admins PRIMARY KEY (id),
+    CONSTRAINT UQ_admins_email UNIQUE (email)
+);
+GO
+
+CREATE INDEX idx_admins_email ON admins(email);
+CREATE INDEX idx_admins_is_active ON admins(is_active);
+GO
+
+-- =============================================
+-- Table: users
+-- =============================================
+CREATE TABLE users (
+    id INT IDENTITY(1,1) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    role VARCHAR(20) DEFAULT 'user',
+    phone VARCHAR(15) NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    profile_picture VARCHAR(255) NULL,
+    is_active BIT DEFAULT 1,
+    email_verified BIT DEFAULT 0,
+    last_login DATETIME NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_users PRIMARY KEY (id),
+    CONSTRAINT UQ_users_email UNIQUE (email),
+    CONSTRAINT CK_users_role CHECK (role IN ('super_admin', 'admin', 'manager', 'driver', 'user'))
+);
+GO
+
+CREATE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_role ON users(role);
+CREATE INDEX idx_users_is_active ON users(is_active);
+GO
+
+-- =============================================
+-- Table: drivers
+-- =============================================
+CREATE TABLE drivers (
+    id INT IDENTITY(1,1) NOT NULL,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    dob DATE NULL,
+    experience INT NOT NULL DEFAULT 0,
+    license_number VARCHAR(100) NOT NULL,
+    bank_name VARCHAR(100) NULL,
+    account_number VARCHAR(50) NULL,
+    ifsc_code VARCHAR(20) NULL,
+    bank_branch VARCHAR(100) NULL,
+    emergency_contact VARCHAR(20) NULL,
+    address_proof VARCHAR(255) NULL,
+    aadhar_card VARCHAR(20) NULL,
+    pan_card VARCHAR(20) NULL,
+    medical_report VARCHAR(255) NULL,
+    police_verification VARCHAR(255) NULL,
+    license_file_path VARCHAR(255) NULL,
+    police_file_path VARCHAR(255) NULL,
+    bank_file_path VARCHAR(255) NULL,
+    medical_file_path VARCHAR(255) NULL,
+    aadhar_file_path VARCHAR(255) NULL,
+    wallet_balance DECIMAL(10,2) DEFAULT 0.00,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_drivers PRIMARY KEY (id),
+    CONSTRAINT UQ_drivers_email UNIQUE (email)
+);
+GO
+
+-- =============================================
+-- Table: vehicles
+-- =============================================
+CREATE TABLE vehicles (
+    id INT IDENTITY(1,1) NOT NULL,
+    vehicle_id VARCHAR(100) NOT NULL,
+    type VARCHAR(255) NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
+    year VARCHAR(4) NOT NULL,
+    license_plate VARCHAR(50) NOT NULL,
+    puc_certificate_number VARCHAR(100) NOT NULL,
+    puc_expiry_date DATE NULL,
+    upload_puc_document_copy_file_path VARCHAR(255) NULL,
+    notes TEXT NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_vehicles PRIMARY KEY (id)
+);
+GO
+
+-- =============================================
+-- Table: shipments
+-- =============================================
+CREATE TABLE shipments (
+    id INT IDENTITY(1,1) NOT NULL,
+    tracking_id VARCHAR(50) NULL,
+    destination VARCHAR(255) NOT NULL,
+    client VARCHAR(255) NULL,
+    weight VARCHAR(50) NULL,
+    driver_id INT NULL,
+    vehicle_id INT NULL,
+    eta DATETIME NULL,
+    status VARCHAR(50) DEFAULT 'Loading',
+    notes TEXT NULL,
+    challan_number VARCHAR(50) NULL,
+    pickup_location VARCHAR(255) NULL,
+    delivery_location VARCHAR(255) NULL,
+    freight_charge DECIMAL(10,2) DEFAULT 0.00,
+    gst DECIMAL(5,2) DEFAULT 0.00,
+    payment_mode VARCHAR(50) DEFAULT 'cash',
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_shipments PRIMARY KEY (id),
+    CONSTRAINT FK_shipments_driver FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE SET NULL,
+    CONSTRAINT FK_shipments_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL
+);
+GO
+
+CREATE INDEX idx_shipments_tracking_id ON shipments(tracking_id);
+CREATE INDEX idx_shipments_status ON shipments(status);
+GO
+
+-- =============================================
+-- Table: transactions
+-- =============================================
+CREATE TABLE transactions (
+    id INT IDENTITY(1,1) NOT NULL,
+    transaction_id VARCHAR(50) NOT NULL,
+    user_id INT NULL,
+    driver_id INT NULL,
+    shipment_id INT NULL,
+    type VARCHAR(20) NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    description VARCHAR(255) NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    payment_method VARCHAR(20) NULL,
+    reference VARCHAR(100) NULL,
+    metadata NVARCHAR(MAX) NULL,  -- JSON support
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_transactions PRIMARY KEY (id),
+    CONSTRAINT UQ_transactions_transaction_id UNIQUE (transaction_id),
+    CONSTRAINT CK_transactions_type CHECK (type IN ('credit', 'debit', 'refund', 'payment')),
+    CONSTRAINT CK_transactions_status CHECK (status IN ('pending', 'completed', 'failed', 'processing')),
+    CONSTRAINT CK_transactions_payment_method CHECK (payment_method IN ('cash', 'card', 'upi', 'bank_transfer', 'wallet')),
+    CONSTRAINT FK_transactions_driver FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE SET NULL,
+    CONSTRAINT FK_transactions_shipment FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL
+);
+GO
+
+CREATE INDEX idx_transactions_transaction_id ON transactions(transaction_id);
+CREATE INDEX idx_transactions_type ON transactions(type);
+CREATE INDEX idx_transactions_status ON transactions(status);
+CREATE INDEX idx_transactions_created_at ON transactions(created_at);
+GO
+
+-- =============================================
+-- Table: payments
+-- =============================================
+CREATE TABLE payments (
+    id INT IDENTITY(1,1) NOT NULL,
+    driver_id INT NOT NULL,
+    shipment_id INT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    checkpoint VARCHAR(255) NULL,
+    upi_id VARCHAR(255) NULL,
+    upi_ref VARCHAR(255) NULL,
+    note TEXT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    paid_by VARCHAR(255) DEFAULT 'admin',
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_payments PRIMARY KEY (id),
+    CONSTRAINT CK_payments_status CHECK (status IN ('pending', 'completed', 'failed')),
+    CONSTRAINT FK_payments_driver FOREIGN KEY (driver_id) REFERENCES drivers(id) ON DELETE CASCADE,
+    CONSTRAINT FK_payments_shipment FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE SET NULL
+);
+GO
+
+-- =============================================
+-- Table: company_profiles
+-- =============================================
+CREATE TABLE company_profiles (
+    id INT IDENTITY(1,1) NOT NULL,
+    company_name VARCHAR(100) NOT NULL,
+    owner_name VARCHAR(100) NULL,
+    phone VARCHAR(15) NULL,
+    gstin VARCHAR(15) NULL,
+    pan_number VARCHAR(10) NULL,
+    address TEXT NULL,
+    city VARCHAR(50) NOT NULL,
+    state VARCHAR(50) NOT NULL,
+    pincode VARCHAR(6) NOT NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_company_profiles PRIMARY KEY (id)
+);
+GO
+
+CREATE INDEX idx_company_profiles_company_name ON company_profiles(company_name);
+CREATE INDEX idx_company_profiles_city ON company_profiles(city);
+CREATE INDEX idx_company_profiles_state ON company_profiles(state);
+GO
+
+-- =============================================
+-- Table: maintenance_logs
+-- =============================================
+CREATE TABLE maintenance_logs (
+    id INT IDENTITY(1,1) NOT NULL,
+    vehicle_id INT NOT NULL,
+    maintenance_type VARCHAR(50) NULL,
+    category VARCHAR(50) NULL,
+    description TEXT NULL,
+    service_date DATE NULL,
+    cost DECIMAL(10,2) DEFAULT 0.00,
+    status VARCHAR(50) DEFAULT 'In Progress',
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_maintenance_logs PRIMARY KEY (id),
+    CONSTRAINT FK_maintenance_logs_vehicle FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE CASCADE
+);
+GO
+
+-- =============================================
+-- Table: system_logs
+-- =============================================
+CREATE TABLE system_logs (
+    id INT IDENTITY(1,1) NOT NULL,
+    type VARCHAR(50) NULL,
+    title VARCHAR(255) NULL,
+    description TEXT NULL,
+    time VARCHAR(50) NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_system_logs PRIMARY KEY (id)
+);
+GO
+
+-- =============================================
+-- Table: admin_activities
+-- =============================================
+CREATE TABLE admin_activities (
+    id INT IDENTITY(1,1) NOT NULL,
+    admin_id INT NOT NULL,
+    activity_type VARCHAR(20) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
+    details NVARCHAR(MAX) NULL,  -- JSON support
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_admin_activities PRIMARY KEY (id),
+    CONSTRAINT CK_admin_activities_type CHECK (activity_type IN ('login', 'logout', 'profile_update', 'password_change', 'login_failed')),
+    CONSTRAINT FK_admin_activities_admin FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+GO
+
+CREATE INDEX idx_admin_activities_admin_id ON admin_activities(admin_id);
+CREATE INDEX idx_admin_activities_created_at ON admin_activities(created_at);
+GO
+
+-- =============================================
+-- Table: admin_sessions
+-- =============================================
+CREATE TABLE admin_sessions (
+    id INT IDENTITY(1,1) NOT NULL,
+    admin_id INT NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_admin_sessions PRIMARY KEY (id),
+    CONSTRAINT UQ_admin_sessions_token UNIQUE (token),
+    CONSTRAINT FK_admin_sessions_admin FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+GO
+
+CREATE INDEX idx_admin_sessions_token ON admin_sessions(token);
+CREATE INDEX idx_admin_sessions_admin_id ON admin_sessions(admin_id);
+CREATE INDEX idx_admin_sessions_expires_at ON admin_sessions(expires_at);
+GO
+
+-- =============================================
+-- Table: admin_password_resets
+-- =============================================
+CREATE TABLE admin_password_resets (
+    id INT IDENTITY(1,1) NOT NULL,
+    admin_id INT NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used BIT DEFAULT 0,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_admin_password_resets PRIMARY KEY (id),
+    CONSTRAINT UQ_admin_password_resets_token UNIQUE (token),
+    CONSTRAINT FK_admin_password_resets_admin FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+);
+GO
+
+CREATE INDEX idx_admin_password_resets_token ON admin_password_resets(token);
+CREATE INDEX idx_admin_password_resets_admin_id ON admin_password_resets(admin_id);
+CREATE INDEX idx_admin_password_resets_expires_at ON admin_password_resets(expires_at);
+GO
+
+-- =============================================
+-- Table: operators
+-- =============================================
+CREATE TABLE operators (
+    operator_id INT IDENTITY(1,1) NOT NULL,
+    username VARCHAR(50) NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'operator',
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_operators PRIMARY KEY (operator_id),
+    CONSTRAINT UQ_operators_username UNIQUE (username),
+    CONSTRAINT UQ_operators_email UNIQUE (email)
+);
+GO
+
+-- =============================================
+-- Table: lrs (Loading Receipts)
+-- =============================================
+CREATE TABLE lrs (
+    id BIGINT IDENTITY(1,1) NOT NULL,
+    lr_number VARCHAR(50) NOT NULL,
+    booking_date VARCHAR(15) NOT NULL,
+    branch_id BIGINT NULL,
+    from_city VARCHAR(100) NOT NULL,
+    to_city VARCHAR(100) NOT NULL,
+    consignor_id BIGINT NOT NULL,
+    consignee_id BIGINT NOT NULL,
+    goods_desc VARCHAR(255) NOT NULL,
+    packages INT DEFAULT 0,
+    weight DECIMAL(10,2) DEFAULT 0.00,
+    weight_type VARCHAR(10) DEFAULT 'kg',
+    invoice_no VARCHAR(100) NULL,
+    invoice_value DECIMAL(12,2) DEFAULT 0.00,
+    eway_bill VARCHAR(12) NULL,
+    payment_type VARCHAR(10) NOT NULL,
+    freight_amount DECIMAL(10,2) NOT NULL,
+    loading_charges DECIMAL(10,2) DEFAULT 0.00,
+    unloading_charges DECIMAL(10,2) DEFAULT 0.00,
+    other_charges DECIMAL(10,2) DEFAULT 0.00,
+    discount DECIMAL(10,2) DEFAULT 0.00,
+    gst_applicable BIT DEFAULT 0,
+    gst_type VARCHAR(20) DEFAULT 'igst',
+    cgst_amount DECIMAL(10,2) DEFAULT 0.00,
+    sgst_amount DECIMAL(10,2) DEFAULT 0.00,
+    igst_amount DECIMAL(10,2) DEFAULT 0.00,
+    total_amount DECIMAL(12,2) NOT NULL,
+    remarks TEXT NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_lrs PRIMARY KEY (id),
+    CONSTRAINT UQ_lrs_lr_number UNIQUE (lr_number),
+    CONSTRAINT CK_lrs_weight_type CHECK (weight_type IN ('kg', 'ton')),
+    CONSTRAINT CK_lrs_payment_type CHECK (payment_type IN ('paid', 'topay', 'tbb')),
+    CONSTRAINT CK_lrs_gst_type CHECK (gst_type IN ('igst', 'cgst_sgst'))
+);
+GO
+
+CREATE INDEX idx_lrs_lr_number ON lrs(lr_number);
+CREATE INDEX idx_lrs_booking_date ON lrs(booking_date);
+GO
+
+-- =============================================
+-- Table: city
+-- =============================================
+CREATE TABLE city (
+    city_id INT IDENTITY(1,1) NOT NULL,
+    city_name VARCHAR(255) NOT NULL,
+    state VARCHAR(255) NULL,
+    country VARCHAR(255) NULL,
+    pin_code VARCHAR(20) NULL,
+    CONSTRAINT PK_city PRIMARY KEY (city_id)
+);
+GO
+
+-- =============================================
+-- Table: client
+-- =============================================
+CREATE TABLE client (
+    client_id INT IDENTITY(1,1) NOT NULL,
+    company_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NULL,
+    contact_person VARCHAR(255) NULL,
+    phone VARCHAR(20) NULL,
+    vehicles INT DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'Active',
+    CONSTRAINT PK_client PRIMARY KEY (client_id)
+);
+GO
+
+-- =============================================
+-- Table: admin_wallet
+-- =============================================
+CREATE TABLE admin_wallet (
+    id INT IDENTITY(1,1) NOT NULL,
+    balance DECIMAL(10,2) DEFAULT 0.00,
+    updated_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_admin_wallet PRIMARY KEY (id)
+);
+GO
+
+-- =============================================
+-- Table: password_reset_tokens
+-- =============================================
+CREATE TABLE password_reset_tokens (
+    id INT IDENTITY(1,1) NOT NULL,
+    user_id INT NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    expires_at DATETIME NOT NULL,
+    used BIT DEFAULT 0,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_password_reset_tokens PRIMARY KEY (id),
+    CONSTRAINT UQ_password_reset_tokens_token UNIQUE (token),
+    CONSTRAINT FK_password_reset_tokens_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+GO
+
+CREATE INDEX idx_password_reset_tokens_token ON password_reset_tokens(token);
+CREATE INDEX idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
+CREATE INDEX idx_password_reset_tokens_expires_at ON password_reset_tokens(expires_at);
+GO
+
+-- =============================================
+-- Table: user_activities
+-- =============================================
+CREATE TABLE user_activities (
+    id INT IDENTITY(1,1) NOT NULL,
+    user_id INT NOT NULL,
+    activity_type VARCHAR(20) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
+    details NVARCHAR(MAX) NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_user_activities PRIMARY KEY (id),
+    CONSTRAINT CK_user_activities_type CHECK (activity_type IN ('login', 'logout', 'profile_update', 'password_change', 'login_failed')),
+    CONSTRAINT FK_user_activities_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+GO
+
+CREATE INDEX idx_user_activities_user_id ON user_activities(user_id);
+CREATE INDEX idx_user_activities_activity_type ON user_activities(activity_type);
+CREATE INDEX idx_user_activities_created_at ON user_activities(created_at);
+GO
+
+-- =============================================
+-- Table: user_sessions
+-- =============================================
+CREATE TABLE user_sessions (
+    id INT IDENTITY(1,1) NOT NULL,
+    user_id INT NOT NULL,
+    token VARCHAR(255) NOT NULL,
+    ip_address VARCHAR(45) NULL,
+    user_agent TEXT NULL,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+    CONSTRAINT PK_user_sessions PRIMARY KEY (id),
+    CONSTRAINT UQ_user_sessions_token UNIQUE (token),
+    CONSTRAINT FK_user_sessions_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+GO
+
+CREATE INDEX idx_user_sessions_token ON user_sessions(token);
+CREATE INDEX idx_user_sessions_user_id ON user_sessions(user_id);
+CREATE INDEX idx_user_sessions_expires_at ON user_sessions(expires_at);
+GO
+
+-- =============================================
+-- Driver stored procedures
+-- =============================================
+
+IF OBJECT_ID('dbo.sp_GetAllDrivers', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetAllDrivers;
+GO
+CREATE PROCEDURE dbo.sp_GetAllDrivers
+    @Page INT = 1,
+    @PageSize INT = 50,
+    @Search NVARCHAR(255) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE (@Search IS NULL OR @Search = '' OR
+           full_name LIKE '%' + @Search + '%' OR
+           email LIKE '%' + @Search + '%' OR
+           phone LIKE '%' + @Search + '%' OR
+           license_number LIKE '%' + @Search + '%')
+    ORDER BY id ASC
+    OFFSET (@Page - 1) * @PageSize ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriverById', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriverById;
+GO
+CREATE PROCEDURE dbo.sp_GetDriverById
+    @DriverId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, emergency_contact, address_proof,
+           aadhar_card, pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE id = @DriverId;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriverByEmail', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriverByEmail;
+GO
+CREATE PROCEDURE dbo.sp_GetDriverByEmail
+    @Email NVARCHAR(255)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, emergency_contact, address_proof, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE email = @Email;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriverByPhone', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriverByPhone;
+GO
+CREATE PROCEDURE dbo.sp_GetDriverByPhone
+    @Phone NVARCHAR(50)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, emergency_contact, address_proof, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE phone = @Phone;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_CreateDriver', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_CreateDriver;
+GO
+CREATE PROCEDURE dbo.sp_CreateDriver
+    @FullName NVARCHAR(255),
+    @Email NVARCHAR(255),
+    @Phone NVARCHAR(50),
+    @Password NVARCHAR(255),
+    @Dob DATE = NULL,
+    @Experience INT = 0,
+    @LicenseNumber NVARCHAR(100) = NULL,
+    @BankName NVARCHAR(100) = NULL,
+    @AccountNumber NVARCHAR(50) = NULL,
+    @IfscCode NVARCHAR(20) = NULL,
+    @BankBranch NVARCHAR(100) = NULL,
+    @EmergencyContact NVARCHAR(20) = NULL,
+    @AddressProof NVARCHAR(255) = NULL,
+    @AadharCard NVARCHAR(20) = NULL,
+    @PanCard NVARCHAR(20) = NULL,
+    @MedicalReport NVARCHAR(255) = NULL,
+    @PoliceVerification NVARCHAR(255) = NULL,
+    @LicenseFilePath NVARCHAR(255) = NULL,
+    @PoliceFilePath NVARCHAR(255) = NULL,
+    @BankFilePath NVARCHAR(255) = NULL,
+    @MedicalFilePath NVARCHAR(255) = NULL,
+    @AadharFilePath NVARCHAR(255) = NULL,
+    @WalletBalance DECIMAL(10,2) = 0.00,
+    @NewDriverId INT OUTPUT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    INSERT INTO drivers (
+        full_name, email, phone, password, dob, experience, license_number,
+        bank_name, account_number, ifsc_code, bank_branch, emergency_contact, address_proof, aadhar_card,
+        pan_card, medical_report, police_verification, license_file_path,
+        police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+        wallet_balance, created_at
+    )
+    VALUES (
+        @FullName, @Email, @Phone, @Password, @Dob, @Experience, @LicenseNumber,
+        @BankName, @AccountNumber, @IfscCode, @BankBranch, @EmergencyContact, @AddressProof, @AadharCard,
+        @PanCard, @MedicalReport, @PoliceVerification, @LicenseFilePath,
+        @PoliceFilePath, @BankFilePath, @MedicalFilePath, @AadharFilePath,
+        @WalletBalance, GETDATE()
+    );
+
+    SET @NewDriverId = SCOPE_IDENTITY();
+    SELECT @NewDriverId AS NewDriverId;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_UpdateDriver', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_UpdateDriver;
+GO
+CREATE PROCEDURE dbo.sp_UpdateDriver
+    @DriverId INT,
+    @FullName NVARCHAR(255) = NULL,
+    @Email NVARCHAR(255) = NULL,
+    @Phone NVARCHAR(50) = NULL,
+    @Password NVARCHAR(255) = NULL,
+    @Dob DATE = NULL,
+    @Experience INT = NULL,
+    @LicenseNumber NVARCHAR(100) = NULL,
+    @BankName NVARCHAR(100) = NULL,
+    @AccountNumber NVARCHAR(50) = NULL,
+    @IfscCode NVARCHAR(20) = NULL,
+    @BankBranch NVARCHAR(100) = NULL,
+    @EmergencyContact NVARCHAR(20) = NULL,
+    @AddressProof NVARCHAR(255) = NULL,
+    @AadharCard NVARCHAR(20) = NULL,
+    @PanCard NVARCHAR(20) = NULL,
+    @MedicalReport NVARCHAR(255) = NULL,
+    @PoliceVerification NVARCHAR(255) = NULL,
+    @LicenseFilePath NVARCHAR(255) = NULL,
+    @PoliceFilePath NVARCHAR(255) = NULL,
+    @BankFilePath NVARCHAR(255) = NULL,
+    @MedicalFilePath NVARCHAR(255) = NULL,
+    @AadharFilePath NVARCHAR(255) = NULL,
+    @WalletBalance DECIMAL(10,2) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE drivers
+    SET full_name = COALESCE(@FullName, full_name),
+        email = COALESCE(@Email, email),
+        phone = COALESCE(@Phone, phone),
+        password = COALESCE(@Password, password),
+        dob = COALESCE(@Dob, dob),
+        experience = COALESCE(@Experience, experience),
+        license_number = COALESCE(@LicenseNumber, license_number),
+        bank_name = COALESCE(@BankName, bank_name),
+        account_number = COALESCE(@AccountNumber, account_number),
+        ifsc_code = COALESCE(@IfscCode, ifsc_code),
+        bank_branch = COALESCE(@BankBranch, bank_branch),
+        emergency_contact = COALESCE(@EmergencyContact, emergency_contact),
+        address_proof = COALESCE(@AddressProof, address_proof),
+        aadhar_card = COALESCE(@AadharCard, aadhar_card),
+        pan_card = COALESCE(@PanCard, pan_card),
+        medical_report = COALESCE(@MedicalReport, medical_report),
+        police_verification = COALESCE(@PoliceVerification, police_verification),
+        license_file_path = COALESCE(@LicenseFilePath, license_file_path),
+        police_file_path = COALESCE(@PoliceFilePath, police_file_path),
+        bank_file_path = COALESCE(@BankFilePath, bank_file_path),
+        medical_file_path = COALESCE(@MedicalFilePath, medical_file_path),
+        aadhar_file_path = COALESCE(@AadharFilePath, aadhar_file_path),
+        wallet_balance = COALESCE(@WalletBalance, wallet_balance)
+    WHERE id = @DriverId;
+
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE id = @DriverId;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_DeleteDriver', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_DeleteDriver;
+GO
+CREATE PROCEDURE dbo.sp_DeleteDriver
+    @DriverId INT,
+    @ForceDelete BIT = 0
+AS
+BEGIN
+    SET NOCOUNT ON;
+    DELETE FROM drivers WHERE id = @DriverId;
+    SELECT @@ROWCOUNT AS RowsAffected;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_SearchDrivers', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_SearchDrivers;
+GO
+CREATE PROCEDURE dbo.sp_SearchDrivers
+    @Search NVARCHAR(255),
+    @Page INT = 1,
+    @PageSize INT = 50
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, emergency_contact, address_proof, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE full_name LIKE '%' + @Search + '%'
+       OR email LIKE '%' + @Search + '%'
+       OR phone LIKE '%' + @Search + '%'
+       OR license_number LIKE '%' + @Search + '%'
+    ORDER BY id ASC
+    OFFSET (@Page - 1) * @PageSize ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriverStats', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriverStats;
+GO
+CREATE PROCEDURE dbo.sp_GetDriverStats
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT
+        (SELECT COUNT(*) FROM drivers) AS TotalDrivers,
+        (SELECT COUNT(*) FROM drivers WHERE medical_report = 'Approved') AS MedicalApproved,
+        (SELECT COUNT(*) FROM drivers WHERE medical_report = 'Pending') AS MedicalPending,
+        (SELECT COUNT(*) FROM drivers WHERE police_verification = 'Approved') AS PoliceApproved,
+        (SELECT COUNT(*) FROM drivers WHERE police_verification = 'Pending') AS PolicePending,
+        (SELECT ISNULL(SUM(wallet_balance), 0) FROM drivers) AS TotalWalletBalance,
+        (SELECT ISNULL(AVG(wallet_balance), 0) FROM drivers) AS AvgWalletBalance,
+        (SELECT COUNT(*) FROM drivers WHERE experience >= 5) AS ExperiencedDrivers,
+        (SELECT COUNT(*) FROM drivers WHERE experience < 5) AS NewDrivers;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_UpdateDriverWallet', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_UpdateDriverWallet;
+GO
+CREATE PROCEDURE dbo.sp_UpdateDriverWallet
+    @DriverId INT,
+    @Amount DECIMAL(10,2),
+    @Operation NVARCHAR(20)
+AS
+BEGIN
+    SET NOCOUNT ON;
+    IF @Operation = 'credit'
+    BEGIN
+        UPDATE drivers
+        SET wallet_balance = wallet_balance + @Amount
+        WHERE id = @DriverId;
+    END
+    ELSE IF @Operation = 'debit'
+    BEGIN
+        UPDATE drivers
+        SET wallet_balance = wallet_balance - @Amount
+        WHERE id = @DriverId;
+    END
+    ELSE
+    BEGIN
+        RAISERROR('Invalid wallet operation', 16, 1);
+        RETURN;
+    END
+
+    SELECT id, wallet_balance FROM drivers WHERE id = @DriverId;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriverWithHistory', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriverWithHistory;
+GO
+CREATE PROCEDURE dbo.sp_GetDriverWithHistory
+    @DriverId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE id = @DriverId;
+
+    SELECT id, tracking_id, destination, client, weight, driver_id, vehicle_id,
+           eta, status, notes, challan_number, pickup_location, delivery_location,
+           freight_charge, gst, payment_mode, created_at, updated_at
+    FROM shipments
+    WHERE driver_id = @DriverId
+    ORDER BY created_at DESC;
+
+    SELECT id, transaction_id, user_id, driver_id, shipment_id, type, amount,
+           description, status, payment_method, reference, metadata, created_at, updated_at
+    FROM transactions
+    WHERE driver_id = @DriverId
+    ORDER BY created_at DESC;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_BulkInsertDrivers', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_BulkInsertDrivers;
+GO
+CREATE PROCEDURE dbo.sp_BulkInsertDrivers
+    @JsonData NVARCHAR(MAX)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    INSERT INTO drivers (
+        full_name, email, phone, password, dob, experience, license_number,
+        bank_name, account_number, ifsc_code, bank_branch, aadhar_card,
+        pan_card, medical_report, police_verification, license_file_path,
+        police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+        wallet_balance, created_at
+    )
+    SELECT
+        JSON_VALUE(value, '$.full_name'),
+        JSON_VALUE(value, '$.email'),
+        JSON_VALUE(value, '$.phone'),
+        JSON_VALUE(value, '$.password'),
+        TRY_CAST(JSON_VALUE(value, '$.dob') AS DATE),
+        TRY_CAST(JSON_VALUE(value, '$.experience') AS INT),
+        JSON_VALUE(value, '$.license_number'),
+        JSON_VALUE(value, '$.bank_name'),
+        JSON_VALUE(value, '$.account_number'),
+        JSON_VALUE(value, '$.ifsc_code'),
+        JSON_VALUE(value, '$.bank_branch'),
+        JSON_VALUE(value, '$.aadhar_card'),
+        JSON_VALUE(value, '$.pan_card'),
+        JSON_VALUE(value, '$.medical_report'),
+        JSON_VALUE(value, '$.police_verification'),
+        JSON_VALUE(value, '$.license_file_path'),
+        JSON_VALUE(value, '$.police_file_path'),
+        JSON_VALUE(value, '$.bank_file_path'),
+        JSON_VALUE(value, '$.medical_file_path'),
+        JSON_VALUE(value, '$.aadhar_file_path'),
+        TRY_CAST(JSON_VALUE(value, '$.wallet_balance') AS DECIMAL(10,2)),
+        GETDATE()
+    FROM OPENJSON(@JsonData);
+
+    SELECT @@ROWCOUNT AS RowsInserted;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriversByStatus', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriversByStatus;
+GO
+CREATE PROCEDURE dbo.sp_GetDriversByStatus
+    @MedicalStatus NVARCHAR(255) = NULL,
+    @PoliceStatus NVARCHAR(255) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE (@MedicalStatus IS NULL OR medical_report = @MedicalStatus)
+      AND (@PoliceStatus IS NULL OR police_verification = @PoliceStatus)
+    ORDER BY id ASC;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriverWalletTransactions', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriverWalletTransactions;
+GO
+CREATE PROCEDURE dbo.sp_GetDriverWalletTransactions
+    @DriverId INT,
+    @Page INT = 1,
+    @PageSize INT = 20
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, transaction_id, user_id, driver_id, shipment_id, type, amount,
+           description, status, payment_method, reference, metadata, created_at, updated_at
+    FROM transactions
+    WHERE driver_id = @DriverId
+    ORDER BY created_at DESC
+    OFFSET (@Page - 1) * @PageSize ROWS
+    FETCH NEXT @PageSize ROWS ONLY;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_UpdateDriverStatus', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_UpdateDriverStatus;
+GO
+CREATE PROCEDURE dbo.sp_UpdateDriverStatus
+    @DriverId INT,
+    @MedicalStatus NVARCHAR(255) = NULL,
+    @PoliceStatus NVARCHAR(255) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    UPDATE drivers
+    SET medical_report = COALESCE(@MedicalStatus, medical_report),
+        police_verification = COALESCE(@PoliceStatus, police_verification)
+    WHERE id = @DriverId;
+
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE id = @DriverId;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriverSummary', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriverSummary;
+GO
+CREATE PROCEDURE dbo.sp_GetDriverSummary
+    @DriverId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, dob, experience, license_number,
+           bank_name, account_number, ifsc_code, bank_branch, aadhar_card,
+           pan_card, medical_report, police_verification, license_file_path,
+           police_file_path, bank_file_path, medical_file_path, aadhar_file_path,
+           wallet_balance, created_at
+    FROM drivers
+    WHERE id = @DriverId;
+
+    SELECT COUNT(*) AS TotalShipments,
+           SUM(CASE WHEN status = 'Delivered' THEN 1 ELSE 0 END) AS DeliveredShipments,
+           SUM(CASE WHEN status = 'Loading' THEN 1 ELSE 0 END) AS InProgressShipments,
+           SUM(freight_charge) AS TotalFreight
+    FROM shipments
+    WHERE driver_id = @DriverId;
+
+    SELECT COUNT(*) AS TotalTransactions,
+           SUM(CASE WHEN type = 'credit' THEN amount ELSE 0 END) AS TotalCredit,
+           SUM(CASE WHEN type = 'debit' THEN amount ELSE 0 END) AS TotalDebit
+    FROM transactions
+    WHERE driver_id = @DriverId;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_CheckDriverAvailability', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_CheckDriverAvailability;
+GO
+CREATE PROCEDURE dbo.sp_CheckDriverAvailability
+    @DriverId INT,
+    @FromDate DATE = NULL,
+    @ToDate DATE = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, tracking_id, destination, driver_id, status, created_at
+    FROM shipments
+    WHERE driver_id = @DriverId
+      AND (@FromDate IS NULL OR created_at >= @FromDate)
+      AND (@ToDate IS NULL OR created_at <= @ToDate)
+    ORDER BY created_at DESC;
+END
+GO
+
+IF OBJECT_ID('dbo.sp_GetDriversWithLowBalance', 'P') IS NOT NULL
+    DROP PROCEDURE dbo.sp_GetDriversWithLowBalance;
+GO
+CREATE PROCEDURE dbo.sp_GetDriversWithLowBalance
+    @Threshold DECIMAL(10,2) = 100.00
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SELECT id, full_name, email, phone, wallet_balance, created_at
+    FROM drivers
+    WHERE wallet_balance < @Threshold
+    ORDER BY wallet_balance ASC;
+END
+GO

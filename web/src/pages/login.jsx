@@ -29,7 +29,7 @@ const Form = () => {
     try {
       console.log('🔐 Attempting login with:', credentials.email);
 
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('http://localhost:8001/api/auth/login', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -60,7 +60,7 @@ const Form = () => {
       }
     } catch (error) {
       console.error('❌ Login error:', error);
-      setError('Server not reachable. Please make sure Flask server is running on port 5000.');
+      setError('Server not reachable. Please make sure backend server is running on port 8000.');
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import styled from 'styled-components';
+import axios from 'axios';
+
+const API_BASE = 'http://localhost:8001/api';
 
 export default function TrackShipment() {
   const [trackId, setTrackId] = useState('');
@@ -8,13 +11,12 @@ export default function TrackShipment() {
   const [error, setError] = useState('');
 
   // ==================== API CALL ====================
-  const API_BASE = 'http://localhost:5000/api';
 
   const handleTrackSearch = async (e) => {
     e.preventDefault();
     
     if (!trackId.trim()) {
-      setError('Please enter a tracking ID');
+      setError('Please enter a tracking ID or LR number');
       return;
     }
 
@@ -23,62 +25,89 @@ export default function TrackShipment() {
     setSearchResult(null);
 
     try {
-      // Try to find shipment by tracking ID or ID
-      const response = await fetch(`${API_BASE}/shipments`);
-      const result = await response.json();
-
-      if (response.ok) {
-        const shipments = result.data || [];
-        // Search by tracking_id or id
-        const shipment = shipments.find(s =>
-          s.tracking_id?.toLowerCase() === trackId.trim().toLowerCase() ||
-          s.id?.toString() === trackId.trim()
-        );
-
-        if (shipment) {
-          // Get driver and vehicle details
-          const driverResponse = await fetch(`${API_BASE}/drivers`);
-          const drivers = await driverResponse.json();
-          const driver = drivers.data?.find(d => d.id === shipment.driver_id);
-          
-          const vehicleResponse = await fetch(`${API_BASE}/vehicles`);
-          const vehicles = await vehicleResponse.json();
-          const vehicle = vehicles.find(v => v.id === shipment.vehicle_id);
-
-          // Generate tracking steps based on status
-          const steps = generateTrackingSteps(shipment);
-          
-          setSearchResult({
-            id: shipment.tracking_id || `TRK-${String(shipment.id).padStart(4, '0')}`,
-            shipmentId: shipment.id,
-            client: shipment.client || 'N/A',
-            origin: vehicle?.company_name || 'N/A',
-            destination: shipment.destination || 'N/A',
-            status: shipment.status || 'Pending',
-            eta: shipment.eta ? new Date(shipment.eta).toLocaleString('en-IN', {
-              day: '2-digit',
-              month: 'short',
-              year: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
-            }) : 'N/A',
-            currentLocation: getCurrentLocation(shipment.status),
-            driver: driver?.full_name || 'Unassigned',
-            vehicle: vehicle?.vehicle_id || 'N/A',
-            licensePlate: vehicle?.license_plate || 'N/A',
-            weight: shipment.weight || 'N/A',
-            notes: shipment.notes || 'No notes',
-            steps: steps,
-            statusColor: getStatusColor(shipment.status)
-          });
-        } else {
-          setError('❌ No shipment found with this tracking ID');
+      // Try direct search by LR number first
+      let shipment = null;
+      
+      try {
+        const lrRes = await axios.get(`${API_BASE}/shipments/search/?q=${encodeURIComponent(trackId.trim())}`);
+        const lrResults = lrRes.data.data || lrRes.data || [];
+        if (lrResults.length > 0) {
+          shipment = lrResults[0];
         }
-      } else {
-        setError('❌ Failed to fetch shipment data');
+      } catch (searchErr) {
+        // Search endpoint might not exist, fall back to fetching all
       }
-    } catch (error) {
-      console.error('Error tracking shipment:', error);
+
+      // Fallback: fetch all shipments and search locally
+      if (!shipment) {
+        const shipmentRes = await axios.get(`${API_BASE}/shipments/`);
+        const shipments = shipmentRes.data.data || shipmentRes.data || [];
+        
+        shipment = shipments.find(s =>
+          s.tracking_id?.toLowerCase() === trackId.trim().toLowerCase() ||
+          s.lr_number?.toLowerCase() === trackId.trim().toLowerCase() ||
+          s.id?.toString() === trackId.trim() ||
+          String(s.id).padStart(4, '0') === trackId.trim()
+        );
+      }
+
+      if (!shipment) {
+        setError('❌ No shipment found with this tracking ID or LR number');
+        setLoading(false);
+        return;
+      }
+
+      // Fetch driver and vehicle
+      let driver = null;
+      let vehicle = null;
+
+      try {
+        const [driverRes, vehicleRes] = await Promise.all([
+          axios.get(`${API_BASE}/drivers/`),
+          axios.get(`${API_BASE}/vehicles/`)
+        ]);
+
+        const drivers = driverRes.data.data || driverRes.data || [];
+        const vehicles = vehicleRes.data.data || vehicleRes.data || [];
+        
+        driver = drivers.find(d => d.id === shipment.driver_id || d.id === parseInt(shipment.driver_id));
+        vehicle = vehicles.find(v => v.id === shipment.vehicle_id || v.id === parseInt(shipment.vehicle_id));
+      } catch (err) {
+        console.warn('Could not fetch driver/vehicle details');
+      }
+
+      const steps = generateTrackingSteps(shipment);
+      
+      setSearchResult({
+        id: shipment.tracking_id || `TRK-${String(shipment.id).padStart(4, '0')}`,
+        lrNumber: shipment.lr_number || 'N/A',
+        shipmentId: shipment.id,
+        client: shipment.client || 'N/A',
+        origin: shipment.pickup_location || vehicle?.company_name || 'N/A',
+        destination: shipment.destination || shipment.delivery_location || 'N/A',
+        status: shipment.status || 'Pending',
+        eta: shipment.eta ? new Date(shipment.eta).toLocaleString('en-IN', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }) : 'N/A',
+        currentLocation: getCurrentLocation(shipment.status),
+        driver: driver?.full_name || 'Unassigned',
+        vehicle: vehicle?.vehicle_id || 'N/A',
+        licensePlate: vehicle?.license_plate || 'N/A',
+        weight: shipment.weight ? `${shipment.weight} ${shipment.weight_type || 'kg'}` : 'N/A',
+        goodsDesc: shipment.goods_desc || 'N/A',
+        packages: shipment.packages || 'N/A',
+        freightCharge: shipment.freight_charge || 0,
+        paymentMode: shipment.payment_mode || 'N/A',
+        notes: shipment.notes || 'No notes',
+        steps: steps,
+        statusColor: getStatusColor(shipment.status)
+      });
+    } catch (err) {
+      console.error('Error tracking shipment:', err);
       setError('❌ Network error occurred. Please try again.');
     } finally {
       setLoading(false);
@@ -87,114 +116,130 @@ export default function TrackShipment() {
 
   // ==================== HELPERS ====================
 
-  const getCurrentLocation = (status) => {
+  function getCurrentLocation(status) {
+    const statusLower = (status || '').toLowerCase();
     const locations = {
-      'Delivered': '📍 Destination Reached',
-      'In Transit': '📍 En Route - Jaipur Bypass',
-      'Loading': '📍 Loading Bay - Warehouse',
-      'Delayed': '📍 Traffic Hold - NH-48',
-      'Pending': '📍 Awaiting Dispatch',
-      'Alert': '📍 Emergency Stop - Service Area'
+      'delivered': '📍 Destination Reached',
+      'in transit': '📍 En Route - Highway',
+      'in-transit': '📍 En Route - Highway',
+      'transit': '📍 En Route - Highway',
+      'loading': '📍 Loading Bay - Warehouse',
+      'delayed': '📍 Traffic Hold - Highway',
+      'pending': '📍 Awaiting Dispatch',
     };
-    return locations[status] || '📍 In Transit';
-  };
+    return locations[statusLower] || '📍 In Transit';
+  }
 
-  const getStatusColor = (status) => {
+  function getStatusColor(status) {
+    const statusLower = (status || '').toLowerCase();
     const colors = {
-      'Delivered': '#10b981',
-      'In Transit': '#38bdf8',
-      'Loading': '#94a3b8',
-      'Delayed': '#f59e0b',
-      'Pending': '#f59e0b',
-      'Alert': '#ef4444'
+      'delivered': '#10b981',
+      'in transit': '#38bdf8',
+      'in-transit': '#38bdf8',
+      'transit': '#38bdf8',
+      'loading': '#fbbf24',
+      'delayed': '#f59e0b',
+      'pending': '#94a3b8',
     };
-    return colors[status] || '#94a3b8';
-  };
+    return colors[statusLower] || '#94a3b8';
+  }
 
-  const generateTrackingSteps = (shipment) => {
+  function generateTrackingSteps(shipment) {
+    const statusLower = (shipment.status || '').toLowerCase();
+    
     const baseSteps = [
-      { title: 'Manifest Created', date: shipment.created_at ? new Date(shipment.created_at).toLocaleString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }) : 'N/A', done: true }
+      { 
+        title: '📋 Booking Confirmed', 
+        date: shipment.created_at ? new Date(shipment.created_at).toLocaleString('en-IN', {
+          day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        }) : 'N/A', 
+        done: true 
+      }
     ];
 
-    if (shipment.status === 'Loading') {
+    if (statusLower === 'pending') {
       baseSteps.push(
-        { title: 'Vehicle Assigned', date: 'In Progress', done: true },
-        { title: 'Cargo Loading', date: 'In Progress', done: true },
-        { title: 'Dispatched From Origin', date: 'Pending', done: false }
+        { title: '🚛 Vehicle Assignment', date: 'Pending', done: false },
+        { title: '📦 Cargo Loading', date: 'Pending', done: false },
+        { title: '🛣️ Dispatched', date: 'Pending', done: false }
       );
-    } else if (shipment.status === 'In Transit') {
+    } else if (statusLower === 'loading') {
       baseSteps.push(
-        { title: 'Vehicle Assigned', date: 'Completed', done: true },
-        { title: 'Cargo Loading', date: 'Completed', done: true },
-        { title: 'Dispatched From Origin', date: 'Completed', done: true },
-        { title: 'In Transit', date: 'In Progress', done: true },
-        { title: 'Out for Delivery', date: 'Pending', done: false }
+        { title: '🚛 Vehicle Assigned', date: 'Completed', done: true },
+        { title: '📦 Cargo Loading', date: 'In Progress', done: true },
+        { title: '🛣️ Dispatched', date: 'Pending', done: false }
       );
-    } else if (shipment.status === 'Delivered') {
+    } else if (['in transit', 'in-transit', 'transit'].includes(statusLower)) {
       baseSteps.push(
-        { title: 'Vehicle Assigned', date: 'Completed', done: true },
-        { title: 'Cargo Loading', date: 'Completed', done: true },
-        { title: 'Dispatched From Origin', date: 'Completed', done: true },
-        { title: 'In Transit', date: 'Completed', done: true },
-        { title: 'Out for Delivery', date: 'Completed', done: true },
-        { title: 'Delivered Successfully', date: shipment.eta || 'Completed', done: true }
+        { title: '🚛 Vehicle Assigned', date: 'Completed', done: true },
+        { title: '📦 Cargo Loading', date: 'Completed', done: true },
+        { title: '🛣️ Dispatched', date: 'Completed', done: true },
+        { title: '📍 In Transit', date: 'In Progress', done: true },
+        { title: '🏠 Out for Delivery', date: 'Pending', done: false }
       );
-    } else if (shipment.status === 'Delayed') {
+    } else if (statusLower === 'delayed') {
       baseSteps.push(
-        { title: 'Vehicle Assigned', date: 'Completed', done: true },
-        { title: 'Cargo Loading', date: 'Completed', done: true },
-        { title: 'Dispatched From Origin', date: 'Completed', done: true },
-        { title: 'In Transit', date: 'In Progress', done: true },
-        { title: '⚠️ Delayed', date: 'Pending', done: false }
+        { title: '🚛 Vehicle Assigned', date: 'Completed', done: true },
+        { title: '📦 Cargo Loading', date: 'Completed', done: true },
+        { title: '🛣️ Dispatched', date: 'Completed', done: true },
+        { title: '⚠️ Delayed', date: 'In Progress', done: true },
+        { title: '🏠 Delivery', date: 'Pending', done: false }
+      );
+    } else if (statusLower === 'delivered') {
+      baseSteps.push(
+        { title: '🚛 Vehicle Assigned', date: 'Completed', done: true },
+        { title: '📦 Cargo Loading', date: 'Completed', done: true },
+        { title: '🛣️ Dispatched', date: 'Completed', done: true },
+        { title: '📍 In Transit', date: 'Completed', done: true },
+        { title: '🏠 Out for Delivery', date: 'Completed', done: true },
+        { title: '✅ Delivered Successfully', date: shipment.eta ? new Date(shipment.eta).toLocaleString('en-IN', {
+          day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+        }) : 'Completed', done: true }
       );
     } else {
       baseSteps.push(
-        { title: 'Vehicle Assigned', date: 'Pending', done: false },
-        { title: 'Cargo Loading', date: 'Pending', done: false }
+        { title: '🚛 Vehicle Assignment', date: 'Pending', done: false },
+        { title: '📦 Cargo Loading', date: 'Pending', done: false }
       );
     }
 
     return baseSteps;
+  }
+
+  const formatStatus = (status) => {
+    if (!status) return 'Pending';
+    return status.charAt(0).toUpperCase() + status.slice(1).replace('-', ' ');
   };
 
   // ==================== RENDER ====================
 
   return (
     <PageWrapper>
-      {/* Header */}
       <HeaderSection>
         <h1>📍 Real-Time Cargo Tracking</h1>
-        <p>Enter transport manifest or assignment credentials to scan active fleet coordinates.</p>
+        <p>Enter your LR number or tracking ID to check your shipment status.</p>
       </HeaderSection>
 
-      {/* Search Box */}
       <SearchContainer>
         <form onSubmit={handleTrackSearch}>
           <SearchInputGroup>
             <div className="input-wrapper">
-              <label>Shipment / Tracking ID</label>
+              <label>LR Number / Tracking ID</label>
               <input 
                 type="text" 
                 value={trackId}
                 onChange={(e) => setTrackId(e.target.value)}
-                placeholder="e.g. TRK-2026-0001 or SHP-1001" 
+                placeholder="e.g. LR20260716001 or TRK-1001" 
                 required
               />
             </div>
             <button type="submit" disabled={loading}>
-              {loading ? '⏳ Searching...' : '🔍 Locate Freight'}
+              {loading ? '⏳ Searching...' : '🔍 Track Shipment'}
             </button>
           </SearchInputGroup>
         </form>
       </SearchContainer>
 
-      {/* Error Message */}
       {error && (
         <ErrorBox>
           <span>❌</span>
@@ -203,15 +248,13 @@ export default function TrackShipment() {
         </ErrorBox>
       )}
 
-      {/* Results */}
       {searchResult && !loading && (
         <ResultsContainer>
-          {/* Left: Timeline */}
           <TimelineCard>
             <h3>
-              <span>🚚</span> Transit Progress Pipeline
+              <span>🚚</span> Transit Progress
               <span className="status-badge" style={{ backgroundColor: searchResult.statusColor + '20', color: searchResult.statusColor }}>
-                {searchResult.status}
+                {formatStatus(searchResult.status)}
               </span>
             </h3>
             
@@ -233,7 +276,6 @@ export default function TrackShipment() {
             </TimelineList>
           </TimelineCard>
 
-          {/* Right: Details */}
           <DetailsCard>
             <h3>
               <span>📋</span> Shipment Details
@@ -242,19 +284,27 @@ export default function TrackShipment() {
             
             <DetailGrid>
               <DetailItem>
-                <label>Client Operator</label>
+                <label>LR Number</label>
+                <strong className="lr-number">{searchResult.lrNumber}</strong>
+              </DetailItem>
+              <DetailItem>
+                <label>Shipment ID</label>
+                <span>#{searchResult.shipmentId}</span>
+              </DetailItem>
+              <DetailItem>
+                <label>Client</label>
                 <strong>{searchResult.client}</strong>
               </DetailItem>
               <DetailItem>
-                <label>Current Position</label>
+                <label>Current Location</label>
                 <strong className="location">{searchResult.currentLocation}</strong>
               </DetailItem>
               <DetailItem>
-                <label>Route Matrix</label>
+                <label>Route</label>
                 <span>{searchResult.origin} → {searchResult.destination}</span>
               </DetailItem>
               <DetailItem>
-                <label>Estimated ETA</label>
+                <label>Est. Delivery</label>
                 <strong className="eta">{searchResult.eta}</strong>
               </DetailItem>
               <DetailItem>
@@ -266,8 +316,20 @@ export default function TrackShipment() {
                 <span>{searchResult.vehicle} [{searchResult.licensePlate}]</span>
               </DetailItem>
               <DetailItem>
+                <label>📦 Goods</label>
+                <span>{searchResult.goodsDesc}</span>
+              </DetailItem>
+              <DetailItem>
                 <label>⚖️ Weight</label>
                 <span>{searchResult.weight}</span>
+              </DetailItem>
+              <DetailItem>
+                <label>💰 Freight</label>
+                <span>₹{searchResult.freightCharge}</span>
+              </DetailItem>
+              <DetailItem>
+                <label>💳 Payment</label>
+                <span>{searchResult.paymentMode}</span>
               </DetailItem>
               <DetailItem fullWidth>
                 <label>📝 Notes</label>
@@ -503,13 +565,8 @@ const TimelineItem = styled.div`
       font-weight: 600;
       margin: 0 0 2px 0;
       
-      &.completed {
-        color: #ffffff;
-      }
-      
-      &.pending {
-        color: #64748b;
-      }
+      &.completed { color: #ffffff; }
+      &.pending { color: #64748b; }
     }
     
     p {
@@ -521,7 +578,7 @@ const TimelineItem = styled.div`
 `;
 
 const DetailsCard = styled.div`
-  flex: 1 1 300px;
+  flex: 1 1 320px;
   background: #0f172a;
   padding: 24px;
   border-radius: 16px;
@@ -578,13 +635,9 @@ const DetailItem = styled.div`
     margin: 0;
   }
   
-  .location {
-    color: #f59e0b;
-  }
-  
-  .eta {
-    color: #34d399;
-  }
+  .location { color: #f59e0b; }
+  .eta { color: #34d399; }
+  .lr-number { color: #60a5fa; font-family: monospace; font-size: 14px; }
   
   p {
     font-size: 13px;

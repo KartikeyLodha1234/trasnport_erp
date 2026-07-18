@@ -11,7 +11,7 @@ export default function LiveMap() {
   const [shipments, setShipments] = useState([]);
   const [drivers, setDrivers] = useState([]);
 
-  const API_BASE = 'http://localhost:5000/api';
+  const API_BASE = 'http://localhost:8001/api';
 
   // ==================== API CALLS ====================
   useEffect(() => {

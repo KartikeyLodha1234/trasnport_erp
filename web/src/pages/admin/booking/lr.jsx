@@ -1,9 +1,9 @@
-// web/src/pages/admin/lr/CreateLR.jsx
 import React, { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { useNavigate } from 'react-router-dom';
 
-// Styled Components
+const API_BASE = 'http://localhost:8001/api';
+
 const PageContainer = styled.div`
   padding: 20px;
   max-width: 1400px;
@@ -283,7 +283,6 @@ const Alert = styled.div`
   `}
 `;
 
-// Main Component
 const CreateLR = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -292,8 +291,8 @@ const CreateLR = () => {
     lr_number: '',
     booking_date: '',
     branch_id: '',
-    from_city: '',
-    to_city: '',
+    pickup_location: '',
+    delivery_location: '',
     consignor_id: '',
     consignee_id: '',
     goods_desc: '',
@@ -303,8 +302,8 @@ const CreateLR = () => {
     invoice_no: '',
     invoice_value: '',
     eway_bill: '',
-    payment_type: '',
-    freight_amount: '',
+    payment_mode: '',
+    freight_charge: '',
     loading_charges: 0,
     unloading_charges: 0,
     other_charges: 0,
@@ -314,8 +313,9 @@ const CreateLR = () => {
     cgst_amount: 0,
     sgst_amount: 0,
     igst_amount: 0,
+    gst: 0,
     total_amount: 0,
-    remarks: '',
+    notes: '',
   });
 
   const [consignorGST, setConsignorGST] = useState('');
@@ -324,65 +324,62 @@ const CreateLR = () => {
   const [parties, setParties] = useState([]);
   const [cities, setCities] = useState([]);
 
-  // Fetch master data on component mount
   useEffect(() => {
     fetchMasterData();
-    generateLRNumber();
+    generateDocumentNumbers();
   }, []);
 
   const fetchMasterData = async () => {
     try {
-      // Fetch branches
-      const branchesRes = await fetch('/api/branches');
-      const branchesData = await branchesRes.json();
-      if (branchesData.success) {
-        setBranches(branchesData.data);
+      const branchesRes = await fetch(`${API_BASE}/branches`);
+      const branchesResult = await branchesRes.json();
+      if (branchesResult.success || branchesResult.data) {
+        setBranches(branchesResult.data || branchesResult);
       }
 
-      // Fetch parties (consignors/consignees)
-      const partiesRes = await fetch('/api/parties');
-      const partiesData = await partiesRes.json();
-      if (partiesData.success) {
-        setParties(partiesData.data);
+      const partiesRes = await fetch(`${API_BASE}/parties`);
+      const partiesResult = await partiesRes.json();
+      if (partiesResult.success || partiesResult.data) {
+        setParties(partiesResult.data || partiesResult);
       }
 
-      // Fetch cities
-      const citiesRes = await fetch('/api/cities');
-      const citiesData = await citiesRes.json();
-      if (citiesData.success) {
-        setCities(citiesData.data);
+      const citiesRes = await fetch(`${API_BASE}/cities`);
+      const citiesResult = await citiesRes.json();
+      if (citiesResult.success || citiesResult.data) {
+        const cityData = citiesResult.data || citiesResult;
+        const cityNames = Array.isArray(cityData) ? cityData.map(c => c.name || c) : [];
+        setCities(cityNames);
       }
     } catch (error) {
       console.error('Error fetching master data:', error);
-      // Use fallback data if API fails
-      setBranches([
-        { id: 1, name: 'Head Office - Bhilwara' },
-        { id: 2, name: 'Jodhpur Branch' },
-      ]);
-      setParties([
-        { id: 1, name: 'Maruti Logistics Pvt Ltd', city: 'Nasik', gstin: '27AABCM1234A1Z5' },
-        { id: 2, name: 'Dmart Retail Ltd', city: 'Surat', gstin: '24AABCR1234A1Z5' },
-        { id: 3, name: 'Tata Motors Ltd', city: 'Pune', gstin: '27AABCT1234A1Z5' },
-        { id: 4, name: 'Amazon Seller Services', city: 'Bangalore', gstin: '29AABCA1234A1Z5' },
-        { id: 5, name: 'Flipkart Internet Pvt Ltd', city: 'Bangalore', gstin: '29AABCF1234A1Z5' },
-        { id: 6, name: 'Sun Pharma Industries', city: 'Baroda', gstin: '24AABCS1234A1Z5' },
-        { id: 7, name: 'Ashok Leyland Ltd', city: 'Chennai', gstin: '33AABCA1234A1Z5' },
-        { id: 8, name: 'HUL - Hindustan Unilever', city: 'Nasik', gstin: '27AABCH1234A1Z5' },
-      ]);
-      setCities(['Surat', 'Bangalore', 'Baroda', 'Chennai', 'Nasik', 'Pune']);
+      setAlert({ type: 'error', message: 'Failed to load master data. Please refresh.' });
     }
   };
 
-  const generateLRNumber = () => {
+  const generateDocumentNumbers = () => {
     const today = new Date();
     const year = today.getFullYear();
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
-    const seq = '0001';
+    
+    // Generate LR Number
+    const lrSeq = String(Math.floor(Math.random() * 9000) + 1000);
+    const lrNumber = `LR${year}${month}${day}${lrSeq}`;
+    
+    // Generate Invoice No.
+    const invSeq = String(Math.floor(Math.random() * 900) + 100);
+    const invoiceNo = `INV${year}${month}${day}${invSeq}`;
+    
+    // Generate E-Way Bill No.
+    const ewaySeq = String(Math.floor(Math.random() * 9000000000) + 1000000000);
+    const ewayBill = ewaySeq;
+    
     setFormData(prev => ({
       ...prev,
-      lr_number: `LR${year}${month}${day}${seq}`,
-      booking_date: `${day}-${month}-${year}`,
+      lr_number: lrNumber,
+      booking_date: today.toISOString().split('T')[0],
+      invoice_no: invoiceNo,
+      eway_bill: ewayBill,
     }));
   };
 
@@ -393,46 +390,42 @@ const CreateLR = () => {
       [name]: type === 'checkbox' ? checked : value,
     }));
 
-    // Clear alert when user makes changes
     if (alert.message) {
       setAlert({ type: '', message: '' });
     }
 
     if (name === 'consignor_id') {
       const party = parties.find(p => p.id === parseInt(value));
-      setConsignorGST(party ? `GSTIN: ${party.gstin}` : '');
+      setConsignorGST(party ? `GSTIN: ${party.gstin || 'N/A'}` : '');
     }
 
     if (name === 'consignee_id') {
       const party = parties.find(p => p.id === parseInt(value));
-      setConsigneeGST(party ? `GSTIN: ${party.gstin}` : '');
-    }
-
-    // Recalculate total on any charge change
-    if (['loading_charges', 'unloading_charges', 'other_charges', 'discount', 'freight_amount', 'gst_type'].includes(name)) {
-      calculateTotal();
+      setConsigneeGST(party ? `GSTIN: ${party.gstin || 'N/A'}` : '');
     }
   };
+
+  useEffect(() => {
+    calculateTotal();
+  }, [formData.loading_charges, formData.unloading_charges, formData.other_charges, 
+      formData.discount, formData.freight_charge, formData.gst_type, formData.gst_applicable]);
 
   const toggleGST = (checked) => {
     setFormData(prev => ({
       ...prev,
       gst_applicable: checked,
     }));
-    setTimeout(calculateTotal, 0);
   };
 
   const calculateTotal = () => {
-    const freight = parseFloat(formData.freight_amount) || 0;
+    const freight = parseFloat(formData.freight_charge) || 0;
     const loading = parseFloat(formData.loading_charges) || 0;
     const unloading = parseFloat(formData.unloading_charges) || 0;
     const other = parseFloat(formData.other_charges) || 0;
     const discount = parseFloat(formData.discount) || 0;
 
     let subtotal = freight + loading + unloading + other - discount;
-    let cgst = 0,
-      sgst = 0,
-      igst = 0;
+    let cgst = 0, sgst = 0, igst = 0;
 
     if (formData.gst_applicable && subtotal > 0) {
       if (formData.gst_type === 'igst') {
@@ -443,43 +436,37 @@ const CreateLR = () => {
       }
     }
 
-    const total = subtotal + cgst + sgst + igst;
+    const totalGst = cgst + sgst + igst;
+    const total = subtotal + totalGst;
 
     setFormData(prev => ({
       ...prev,
       cgst_amount: cgst,
       sgst_amount: sgst,
       igst_amount: igst,
+      gst: totalGst,
       total_amount: total,
     }));
   };
 
   const validateForm = () => {
-    if (!formData.from_city.trim()) {
-      setAlert({ type: 'error', message: 'Please select From City.' });
+    if (!formData.pickup_location.trim()) {
+      setAlert({ type: 'error', message: 'Please enter Pickup Location.' });
       return false;
     }
-    if (!formData.to_city.trim()) {
-      setAlert({ type: 'error', message: 'Please select To City.' });
-      return false;
-    }
-    if (!formData.consignor_id) {
-      setAlert({ type: 'error', message: 'Please select Consignor.' });
-      return false;
-    }
-    if (!formData.consignee_id) {
-      setAlert({ type: 'error', message: 'Please select Consignee.' });
+    if (!formData.delivery_location.trim()) {
+      setAlert({ type: 'error', message: 'Please enter Delivery Location.' });
       return false;
     }
     if (!formData.goods_desc.trim()) {
       setAlert({ type: 'error', message: 'Please enter Description of Goods.' });
       return false;
     }
-    if (!formData.payment_type) {
+    if (!formData.payment_mode) {
       setAlert({ type: 'error', message: 'Please select Payment Type.' });
       return false;
     }
-    if (!formData.freight_amount || parseFloat(formData.freight_amount) <= 0) {
+    if (!formData.freight_charge || parseFloat(formData.freight_charge) <= 0) {
       setAlert({ type: 'error', message: 'Please enter Freight Amount.' });
       return false;
     }
@@ -489,77 +476,66 @@ const CreateLR = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     setAlert({ type: '', message: '' });
 
     try {
-      // Prepare data for API
       const payload = {
         lr_number: formData.lr_number,
         booking_date: formData.booking_date,
-        branch_id: formData.branch_id || null,
-        from_city: formData.from_city,
-        to_city: formData.to_city,
-        consignor_id: formData.consignor_id,
-        consignee_id: formData.consignee_id,
+        pickup_location: formData.pickup_location,
+        delivery_location: formData.delivery_location,
+        destination: formData.delivery_location,
+        consignor_id: formData.consignor_id || null,
+        consignee_id: formData.consignee_id || null,
+        client: formData.consignor_id || '',
         goods_desc: formData.goods_desc,
-        packages: formData.packages || 0,
-        weight: formData.weight || 0,
+        packages: parseInt(formData.packages) || 0,
+        weight: parseFloat(formData.weight) || 0,
         weight_type: formData.weight_type,
-        invoice_no: formData.invoice_no || null,
-        invoice_value: formData.invoice_value || 0,
-        eway_bill: formData.eway_bill || null,
-        payment_type: formData.payment_type,
-        freight_amount: formData.freight_amount,
-        loading_charges: formData.loading_charges || 0,
-        unloading_charges: formData.unloading_charges || 0,
-        other_charges: formData.other_charges || 0,
-        discount: formData.discount || 0,
-        gst_applicable: formData.gst_applicable ? 1 : 0,
-        gst_type: formData.gst_type,
-        cgst_amount: formData.cgst_amount || 0,
-        sgst_amount: formData.sgst_amount || 0,
-        igst_amount: formData.igst_amount || 0,
-        total_amount: formData.total_amount || 0,
-        remarks: formData.remarks || null,
+        invoice_no: formData.invoice_no || '',
+        invoice_value: parseFloat(formData.invoice_value) || 0,
+        eway_bill: formData.eway_bill || '',
+        payment_mode: formData.payment_mode,
+        freight_charge: parseFloat(formData.freight_charge) || 0,
+        loading_charges: parseFloat(formData.loading_charges) || 0,
+        unloading_charges: parseFloat(formData.unloading_charges) || 0,
+        other_charges: parseFloat(formData.other_charges) || 0,
+        discount: parseFloat(formData.discount) || 0,
+        gst: formData.gst || 0,
+        notes: formData.notes || '',
+        status: 'pending',
       };
 
-      const response = await fetch('/api/lr/store', {
+      const response = await fetch(`${API_BASE}/shipments/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok) {
         setAlert({ 
           type: 'success', 
           message: `LR ${formData.lr_number} booked successfully!` 
         });
-        
-        // Reset form after successful submission
         setTimeout(() => {
           navigate('/shipments');
         }, 1500);
       } else {
         setAlert({ 
           type: 'error', 
-          message: data.message || 'Failed to book LR. Please try again.' 
+          message: data.detail || data.message || 'Failed to book LR.' 
         });
       }
     } catch (error) {
       console.error('Error booking LR:', error);
       setAlert({ 
         type: 'error', 
-        message: 'Network error. Please check your connection and try again.' 
+        message: 'Network error. Please check your connection.' 
       });
     } finally {
       setLoading(false);
@@ -577,99 +553,50 @@ const CreateLR = () => {
         )}
 
         <Row columns="2fr 1fr">
-          {/* LEFT COLUMN */}
           <Column>
-            {/* LR Details Panel */}
             <Panel>
               <PanelHeader>
                 <PanelTitle>📄 LR Details</PanelTitle>
               </PanelHeader>
               <PanelBody>
-                {/* Row 1: LR Number, Booking Date, Branch */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <FormGroup>
-                    <Label>
-                      LR Number <Required>*</Required>
-                    </Label>
-                    <Input
-                      type="text"
-                      name="lr_number"
-                      value={formData.lr_number}
-                      onChange={handleChange}
-                      className="fw-bold"
-                      required
-                      readOnly
-                    />
+                    <Label>LR Number <Required>*</Required></Label>
+                    <Input type="text" name="lr_number" value={formData.lr_number} onChange={handleChange} className="fw-bold" required readOnly />
                   </FormGroup>
                   <FormGroup>
-                    <Label>
-                      Booking Date <Required>*</Required>
-                    </Label>
-                    <Input
-                      type="text"
-                      name="booking_date"
-                      value={formData.booking_date}
-                      onChange={handleChange}
-                      required
-                    />
+                    <Label>Booking Date <Required>*</Required></Label>
+                    <Input type="date" name="booking_date" value={formData.booking_date} onChange={handleChange} required />
                   </FormGroup>
                   <FormGroup>
                     <Label>Branch</Label>
-                    <Select
-                      name="branch_id"
-                      value={formData.branch_id}
-                      onChange={handleChange}
-                    >
+                    <Select name="branch_id" value={formData.branch_id} onChange={handleChange}>
                       <option value="">Select Branch</option>
                       {branches.map(branch => (
-                        <option key={branch.id} value={branch.id}>
-                          {branch.name}
-                        </option>
+                        <option key={branch.id} value={branch.id}>{branch.name}</option>
                       ))}
                     </Select>
                   </FormGroup>
                 </div>
 
-                {/* Row 2: From City, To City */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <FormGroup>
-                    <Label>
-                      From City <Required>*</Required>
-                    </Label>
-                    <Input
-                      type="text"
-                      name="from_city"
-                      value={formData.from_city}
-                      onChange={handleChange}
-                      list="city_list"
-                      placeholder="Origin city"
-                      required
-                    />
+                    <Label>Pickup Location <Required>*</Required></Label>
+                    <Input type="text" name="pickup_location" value={formData.pickup_location} onChange={handleChange} list="city_list" placeholder="Origin city" required />
                   </FormGroup>
                   <FormGroup>
-                    <Label>
-                      To City <Required>*</Required>
-                    </Label>
-                    <Input
-                      type="text"
-                      name="to_city"
-                      value={formData.to_city}
-                      onChange={handleChange}
-                      list="city_list"
-                      placeholder="Destination city"
-                      required
-                    />
+                    <Label>Delivery Location <Required>*</Required></Label>
+                    <Input type="text" name="delivery_location" value={formData.delivery_location} onChange={handleChange} list="city_list" placeholder="Destination city" required />
                   </FormGroup>
                 </div>
                 <Datalist id="city_list">
-                  {cities.map(city => (
-                    <option key={city} value={city} />
+                  {cities.map((city, index) => (
+                    <option key={index} value={city} />
                   ))}
                 </Datalist>
               </PanelBody>
             </Panel>
 
-            {/* Consignor / Consignee Panel */}
             <Panel>
               <PanelHeader>
                 <PanelTitle>🔄 Consignor & Consignee</PanelTitle>
@@ -677,39 +604,21 @@ const CreateLR = () => {
               <PanelBody>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <FormGroup>
-                    <Label>
-                      Consignor (Sender) <Required>*</Required>
-                    </Label>
-                    <Select
-                      name="consignor_id"
-                      value={formData.consignor_id}
-                      onChange={handleChange}
-                      required
-                    >
+                    <Label>Consignor (Sender)</Label>
+                    <Select name="consignor_id" value={formData.consignor_id} onChange={handleChange}>
                       <option value="">-- Select Consignor --</option>
                       {parties.map(party => (
-                        <option key={party.id} value={party.id}>
-                          {party.name} - {party.city}
-                        </option>
+                        <option key={party.id} value={party.id}>{party.name} - {party.city}</option>
                       ))}
                     </Select>
                     {consignorGST && <GSTInfo>{consignorGST}</GSTInfo>}
                   </FormGroup>
                   <FormGroup>
-                    <Label>
-                      Consignee (Receiver) <Required>*</Required>
-                    </Label>
-                    <Select
-                      name="consignee_id"
-                      value={formData.consignee_id}
-                      onChange={handleChange}
-                      required
-                    >
+                    <Label>Consignee (Receiver)</Label>
+                    <Select name="consignee_id" value={formData.consignee_id} onChange={handleChange}>
                       <option value="">-- Select Consignee --</option>
                       {parties.map(party => (
-                        <option key={party.id} value={party.id}>
-                          {party.name} - {party.city}
-                        </option>
+                        <option key={party.id} value={party.id}>{party.name} - {party.city}</option>
                       ))}
                     </Select>
                     {consigneeGST && <GSTInfo>{consigneeGST}</GSTInfo>}
@@ -718,7 +627,6 @@ const CreateLR = () => {
               </PanelBody>
             </Panel>
 
-            {/* Goods Details */}
             <Panel>
               <PanelHeader>
                 <PanelTitle>📦 Goods Details</PanelTitle>
@@ -726,28 +634,12 @@ const CreateLR = () => {
               <PanelBody>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
                   <FormGroup>
-                    <Label>
-                      Description of Goods <Required>*</Required>
-                    </Label>
-                    <Input
-                      type="text"
-                      name="goods_desc"
-                      value={formData.goods_desc}
-                      onChange={handleChange}
-                      placeholder="e.g. Electronic Goods, Furniture, etc."
-                      required
-                    />
+                    <Label>Description of Goods <Required>*</Required></Label>
+                    <Input type="text" name="goods_desc" value={formData.goods_desc} onChange={handleChange} placeholder="e.g. Electronic Goods" required />
                   </FormGroup>
                   <FormGroup>
                     <Label>No. of Packages</Label>
-                    <Input
-                      type="number"
-                      name="packages"
-                      value={formData.packages}
-                      onChange={handleChange}
-                      min="0"
-                      placeholder="0"
-                    />
+                    <Input type="number" name="packages" value={formData.packages} onChange={handleChange} min="0" placeholder="0" />
                   </FormGroup>
                 </div>
 
@@ -755,22 +647,8 @@ const CreateLR = () => {
                   <FormGroup>
                     <Label>Weight</Label>
                     <InputGroup>
-                      <Input
-                        type="number"
-                        name="weight"
-                        value={formData.weight}
-                        onChange={handleChange}
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        style={{ flex: 1 }}
-                      />
-                      <Select
-                        name="weight_type"
-                        value={formData.weight_type}
-                        onChange={handleChange}
-                        style={{ width: '80px' }}
-                      >
+                      <Input type="number" name="weight" value={formData.weight} onChange={handleChange} min="0" step="0.01" placeholder="0.00" style={{ flex: 1 }} />
+                      <Select name="weight_type" value={formData.weight_type} onChange={handleChange} style={{ width: '80px' }}>
                         <option value="kg">Kg</option>
                         <option value="ton">Ton</option>
                       </Select>
@@ -778,63 +656,33 @@ const CreateLR = () => {
                   </FormGroup>
                   <FormGroup>
                     <Label>Invoice / Bill No.</Label>
-                    <Input
-                      type="text"
-                      name="invoice_no"
-                      value={formData.invoice_no}
-                      onChange={handleChange}
-                      placeholder="Seller invoice number"
-                    />
+                    <Input type="text" name="invoice_no" value={formData.invoice_no} onChange={handleChange} placeholder="Auto-generated invoice number" />
                   </FormGroup>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                   <FormGroup>
                     <Label>Invoice Value (₹)</Label>
-                    <Input
-                      type="number"
-                      name="invoice_value"
-                      value={formData.invoice_value}
-                      onChange={handleChange}
-                      min="0"
-                      step="0.01"
-                      placeholder="0.00"
-                    />
+                    <Input type="number" name="invoice_value" value={formData.invoice_value} onChange={handleChange} min="0" step="0.01" placeholder="0.00" />
                   </FormGroup>
                   <FormGroup>
                     <Label>E-Way Bill No.</Label>
-                    <Input
-                      type="text"
-                      name="eway_bill"
-                      value={formData.eway_bill}
-                      onChange={handleChange}
-                      maxLength="12"
-                      placeholder="12-digit e-way bill"
-                    />
+                    <Input type="text" name="eway_bill" value={formData.eway_bill} onChange={handleChange} placeholder="Auto-generated e-way bill" />
                   </FormGroup>
                 </div>
               </PanelBody>
             </Panel>
           </Column>
 
-          {/* RIGHT COLUMN */}
           <Column>
-            {/* Freight Charges */}
             <Panel>
               <PanelHeader>
                 <PanelTitle>💰 Freight & Charges</PanelTitle>
               </PanelHeader>
               <PanelBody>
                 <FormGroup style={{ marginBottom: '12px' }}>
-                  <Label>
-                    Payment Type <Required>*</Required>
-                  </Label>
-                  <Select
-                    name="payment_type"
-                    value={formData.payment_type}
-                    onChange={handleChange}
-                    required
-                  >
+                  <Label>Payment Type <Required>*</Required></Label>
+                  <Select name="payment_mode" value={formData.payment_mode} onChange={handleChange} required>
                     <option value="">-- Select --</option>
                     <option value="paid">Paid (Prepaid)</option>
                     <option value="topay">To Pay</option>
@@ -843,203 +691,91 @@ const CreateLR = () => {
                 </FormGroup>
 
                 <FormGroup style={{ marginBottom: '12px' }}>
-                  <Label>
-                    Freight Amount (₹) <Required>*</Required>
-                  </Label>
-                  <Input
-                    type="number"
-                    name="freight_amount"
-                    value={formData.freight_amount}
-                    onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    placeholder="0.00"
-                    className="fw-bold"
-                    required
-                  />
+                  <Label>Freight Amount (₹) <Required>*</Required></Label>
+                  <Input type="number" name="freight_charge" value={formData.freight_charge} onChange={handleChange} min="0" step="0.01" placeholder="0.00" className="fw-bold" required />
                 </FormGroup>
 
                 <FormGroup style={{ marginBottom: '12px' }}>
                   <Label>Loading Charges (₹)</Label>
-                  <Input
-                    type="number"
-                    name="loading_charges"
-                    value={formData.loading_charges}
-                    onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    placeholder="0"
-                  />
+                  <Input type="number" name="loading_charges" value={formData.loading_charges} onChange={handleChange} min="0" step="0.01" placeholder="0" />
                 </FormGroup>
 
                 <FormGroup style={{ marginBottom: '12px' }}>
                   <Label>Unloading Charges (₹)</Label>
-                  <Input
-                    type="number"
-                    name="unloading_charges"
-                    value={formData.unloading_charges}
-                    onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    placeholder="0"
-                  />
+                  <Input type="number" name="unloading_charges" value={formData.unloading_charges} onChange={handleChange} min="0" step="0.01" placeholder="0" />
                 </FormGroup>
 
                 <FormGroup style={{ marginBottom: '12px' }}>
                   <Label>Other Charges (₹)</Label>
-                  <Input
-                    type="number"
-                    name="other_charges"
-                    value={formData.other_charges}
-                    onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    placeholder="0"
-                  />
+                  <Input type="number" name="other_charges" value={formData.other_charges} onChange={handleChange} min="0" step="0.01" placeholder="0" />
                 </FormGroup>
 
                 <FormGroup style={{ marginBottom: '12px' }}>
                   <Label>Discount (₹)</Label>
-                  <Input
-                    type="number"
-                    name="discount"
-                    value={formData.discount}
-                    onChange={handleChange}
-                    min="0"
-                    step="0.01"
-                    placeholder="0"
-                  />
+                  <Input type="number" name="discount" value={formData.discount} onChange={handleChange} min="0" step="0.01" placeholder="0" />
                 </FormGroup>
 
-                {/* GST Section */}
                 <GSTSection>
                   <GSTCheckbox>
-                    <input
-                      type="checkbox"
-                      name="gst_applicable"
-                      id="gst_applicable"
-                      checked={formData.gst_applicable}
-                      onChange={(e) => toggleGST(e.target.checked)}
-                    />
-                    <label htmlFor="gst_applicable">
-                      GST Applicable
-                    </label>
+                    <input type="checkbox" name="gst_applicable" id="gst_applicable" checked={formData.gst_applicable} onChange={(e) => toggleGST(e.target.checked)} />
+                    <label htmlFor="gst_applicable">GST Applicable</label>
                   </GSTCheckbox>
 
                   {formData.gst_applicable && (
                     <>
                       <div>
-                        <Label style={{ fontSize: '11.5px', color: '#555' }}>
-                          GST Type
-                        </Label>
+                        <Label style={{ fontSize: '11.5px', color: '#555' }}>GST Type</Label>
                         <GSTTypeGroup>
                           <label>
-                            <input
-                              type="radio"
-                              name="gst_type"
-                              value="igst"
-                              checked={formData.gst_type === 'igst'}
-                              onChange={handleChange}
-                            />
-                            IGST @5% (Interstate)
+                            <input type="radio" name="gst_type" value="igst" checked={formData.gst_type === 'igst'} onChange={handleChange} />
+                            IGST @5%
                           </label>
                           <label>
-                            <input
-                              type="radio"
-                              name="gst_type"
-                              value="cgst_sgst"
-                              checked={formData.gst_type === 'cgst_sgst'}
-                              onChange={handleChange}
-                            />
+                            <input type="radio" name="gst_type" value="cgst_sgst" checked={formData.gst_type === 'cgst_sgst'} onChange={handleChange} />
                             CGST+SGST @2.5% each
                           </label>
                         </GSTTypeGroup>
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
                         <FormGroup>
-                          <Label style={{ fontSize: '10.5px', color: '#666' }}>
-                            CGST (₹)
-                          </Label>
-                          <Input
-                            type="number"
-                            name="cgst_amount"
-                            value={formData.cgst_amount.toFixed(2)}
-                            readOnly
-                            style={{ background: '#f5f5f5' }}
-                          />
+                          <Label style={{ fontSize: '10.5px', color: '#666' }}>CGST (₹)</Label>
+                          <Input type="number" value={formData.cgst_amount.toFixed(2)} readOnly style={{ background: '#f5f5f5' }} />
                         </FormGroup>
                         <FormGroup>
-                          <Label style={{ fontSize: '10.5px', color: '#666' }}>
-                            SGST (₹)
-                          </Label>
-                          <Input
-                            type="number"
-                            name="sgst_amount"
-                            value={formData.sgst_amount.toFixed(2)}
-                            readOnly
-                            style={{ background: '#f5f5f5' }}
-                          />
+                          <Label style={{ fontSize: '10.5px', color: '#666' }}>SGST (₹)</Label>
+                          <Input type="number" value={formData.sgst_amount.toFixed(2)} readOnly style={{ background: '#f5f5f5' }} />
                         </FormGroup>
                         <FormGroup>
-                          <Label style={{ fontSize: '10.5px', color: '#666' }}>
-                            IGST (₹)
-                          </Label>
-                          <Input
-                            type="number"
-                            name="igst_amount"
-                            value={formData.igst_amount.toFixed(2)}
-                            readOnly
-                            style={{ background: '#f5f5f5' }}
-                          />
+                          <Label style={{ fontSize: '10.5px', color: '#666' }}>IGST (₹)</Label>
+                          <Input type="number" value={formData.igst_amount.toFixed(2)} readOnly style={{ background: '#f5f5f5' }} />
                         </FormGroup>
                       </div>
                     </>
                   )}
                 </GSTSection>
 
-                {/* Total */}
                 <TotalBox>
                   <div className="label">TOTAL AMOUNT</div>
-                  <div className="amount">
-                    ₹ {formData.total_amount.toFixed(2)}
-                  </div>
-                  <input
-                    type="hidden"
-                    name="total_amount"
-                    value={formData.total_amount}
-                  />
+                  <div className="amount">₹ {formData.total_amount.toFixed(2)}</div>
                 </TotalBox>
               </PanelBody>
             </Panel>
 
-            {/* Remarks */}
             <Panel>
               <PanelHeader>
                 <PanelTitle>💬 Remarks</PanelTitle>
               </PanelHeader>
               <PanelBody>
-                <Textarea
-                  name="remarks"
-                  value={formData.remarks}
-                  onChange={handleChange}
-                  placeholder="Additional notes..."
-                  rows="3"
-                />
+                <Textarea name="notes" value={formData.notes} onChange={handleChange} placeholder="Additional notes..." rows="3" />
               </PanelBody>
             </Panel>
 
-            {/* Action Buttons */}
             <Panel>
               <PanelBody style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <Button type="submit" className="primary" disabled={loading}>
                   {loading ? '⏳ Booking...' : '✅ Book LR'}
                 </Button>
-                <Button
-                  type="button"
-                  className="secondary"
-                  onClick={() => navigate('/shipments')}
-                  disabled={loading}
-                >
+                <Button type="button" className="secondary" onClick={() => navigate('/shipments')} disabled={loading}>
                   ✕ Cancel
                 </Button>
               </PanelBody>

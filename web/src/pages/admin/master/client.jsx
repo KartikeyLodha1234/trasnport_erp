@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Search,
   Filter,
@@ -12,82 +13,15 @@ import {
   Clock,
   AlertCircle,
   X,
-  ChevronDown,
-  ChevronUp,
   Download,
-  UserPlus,
   Mail,
   Phone,
-  Building2,
   Truck,
-  Calendar,
-  DollarSign,
   FileText,
+  DollarSign,
 } from 'lucide-react';
 
-// --- Sample Data ---
-const sampleClients = [
-  {
-    _id: 1,
-    company: 'ABC Logistics',
-    email: 'info@abclogistics.com',
-    contactPerson: 'John Smith',
-    phone: '+1 234 567 8900',
-    vehicleCount: 12,
-    status: 'active',
-    joined: '2025-01-15',
-    totalSpent: 284500,
-    contracts: 3,
-  },
-  {
-    _id: 2,
-    company: 'City Express',
-    email: 'contact@cityexpress.com',
-    contactPerson: 'Sarah Johnson',
-    phone: '+1 234 567 8901',
-    vehicleCount: 8,
-    status: 'pending',
-    joined: '2025-03-20',
-    totalSpent: 127800,
-    contracts: 2,
-  },
-  {
-    _id: 3,
-    company: 'QuickShip Solutions',
-    email: 'support@quickship.com',
-    contactPerson: 'Mike Wilson',
-    phone: '+1 234 567 8902',
-    vehicleCount: 5,
-    status: 'inactive',
-    joined: '2024-11-02',
-    totalSpent: 45600,
-    contracts: 1,
-  },
-  {
-    _id: 4,
-    company: 'Global Freight Inc',
-    email: 'operations@globalfreight.com',
-    contactPerson: 'Emily Davis',
-    phone: '+1 234 567 8903',
-    vehicleCount: 22,
-    status: 'active',
-    joined: '2025-02-10',
-    totalSpent: 623400,
-    contracts: 5,
-  },
-  {
-    _id: 5,
-    company: 'Metro Transport',
-    email: 'dispatch@metrotransport.com',
-    contactPerson: 'Robert Brown',
-    phone: '+1 234 567 8904',
-    vehicleCount: 4,
-    status: 'pending',
-    joined: '2025-05-05',
-    totalSpent: 23400,
-    contracts: 1,
-  },
-];
+const API_BASE = 'http://localhost:8001/api'; // Adjust to your FastAPI URL
 
 const statusColors = {
   active: { bg: 'bg-emerald-100', text: 'text-emerald-700', dot: 'bg-emerald-500' },
@@ -103,57 +37,109 @@ const statusLabels = {
 
 // --- Main Component ---
 const ClientsPage = () => {
-  const [clients, setClients] = useState(sampleClients);
+  const [clients, setClients] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [selectedClient, setSelectedClient] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
 
+  // Fetch clients from API
+  const fetchClients = async () => {
+    try {
+      setLoading(true);
+      const params = {};
+      if (searchTerm) params.search = searchTerm;
+      if (filterStatus && filterStatus !== 'all') params.status = filterStatus;
+      const response = await axios.get(`${API_BASE}/clients/`, { params });
+      // Normalize data for frontend
+      const normalized = response.data.map((client) => ({
+        ...client,
+        _id: client.id,
+        company: client.company_name || client.company,
+        contactPerson: client.contact_person || client.contactPerson || '',
+        vehicleCount: client.vehicle_count || client.vehicleCount || 0,
+        totalSpent: client.total_spent || client.totalSpent || 0,
+        contracts: client.contracts || 0,
+        joined: client.created_at ? client.created_at.split('T')[0] : '',
+        status: (client.status || 'active').toLowerCase(),
+      }));
+      setClients(normalized);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchClients();
+  }, [searchTerm, filterStatus]);
+
   // Stats
   const stats = [
     { title: 'Total Clients', value: clients.length, icon: Users, color: '#3B82F6' },
     {
-      title: 'Active Contracts',
-      value: clients.reduce((acc, c) => acc + c.contracts, 0),
+      title: 'Active Clients',
+      value: clients.filter((c) => c.status === 'active').length,
       icon: CheckCircle,
       color: '#10B981',
     },
     {
-      title: 'Pending Invoices',
-      value: clients.filter((c) => c.status === 'pending').length * 2,
+      title: 'Pending',
+      value: clients.filter((c) => c.status === 'pending').length,
       icon: Clock,
       color: '#F59E0B',
     },
     {
-      title: 'Issues',
+      title: 'Inactive',
       value: clients.filter((c) => c.status === 'inactive').length,
       icon: AlertCircle,
       color: '#EF4444',
     },
   ];
 
-  // Filter clients
-  const filteredClients = clients.filter((client) => {
-    const matchesSearch =
-      client.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      client.phone.includes(searchTerm);
-    const matchesStatus = filterStatus === 'all' || client.status === filterStatus;
-    return matchesSearch && matchesStatus;
-  });
-
   // Handlers
-  const handleDelete = (id) => {
-    setClients(clients.filter((c) => c._id !== id));
-    setShowDeleteConfirm(null);
+  const handleDelete = async (id) => {
+    try {
+      await axios.delete(`${API_BASE}/clients/${id}`);
+      setClients(clients.filter((c) => c._id !== id));
+      setShowDeleteConfirm(null);
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      alert('Failed to delete client');
+    }
   };
 
-  const handleAddClient = (newClient) => {
-    const newId = Math.max(...clients.map((c) => c._id)) + 1;
-    setClients([...clients, { ...newClient, _id: newId }]);
-    setShowAddModal(false);
+  const handleAddClient = async (newClient) => {
+    try {
+      const payload = {
+        company_name: newClient.company,
+        email: newClient.email,
+        phone: newClient.phone,
+        address: newClient.address || '',
+        status: newClient.status,
+      };
+      const response = await axios.post(`${API_BASE}/clients/`, payload);
+      const created = response.data;
+      const normalized = {
+        ...created,
+        _id: created.id,
+        company: created.company_name || created.company,
+        contactPerson: created.contact_person || newClient.contactPerson || '',
+        vehicleCount: created.vehicle_count || 0,
+        totalSpent: created.total_spent || 0,
+        contracts: created.contracts || 0,
+        joined: created.created_at ? created.created_at.split('T')[0] : newClient.joined,
+        status: (created.status || 'active').toLowerCase(),
+      };
+      setClients([...clients, normalized]);
+      setShowAddModal(false);
+    } catch (error) {
+      console.error('Error adding client:', error);
+      alert('Failed to add client');
+    }
   };
 
   return (
@@ -259,8 +245,14 @@ const ClientsPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {filteredClients.length > 0 ? (
-                filteredClients.map((client) => (
+              {loading ? (
+                <tr>
+                  <td colSpan="5" className="text-center py-16 text-gray-400">
+                    <p className="text-sm font-medium">Loading clients...</p>
+                  </td>
+                </tr>
+              ) : clients.length > 0 ? (
+                clients.map((client) => (
                   <ClientRow
                     key={client._id}
                     client={client}
@@ -282,13 +274,11 @@ const ClientsPage = () => {
             </tbody>
           </table>
         </div>
-        {/* Pagination placeholder */}
         <div className="flex items-center justify-between px-4 md:px-6 py-3 border-t border-gray-100 bg-gray-50/50 text-xs text-gray-500">
-          <span>Showing {filteredClients.length} of {clients.length} clients</span>
+          <span>Showing {clients.length} clients</span>
           <div className="flex gap-1">
             <button className="px-3 py-1 rounded-lg bg-white border border-gray-200 hover:bg-gray-50">Prev</button>
             <button className="px-3 py-1 rounded-lg bg-indigo-600 text-white">1</button>
-            <button className="px-3 py-1 rounded-lg bg-white border border-gray-200 hover:bg-gray-50">2</button>
             <button className="px-3 py-1 rounded-lg bg-white border border-gray-200 hover:bg-gray-50">Next</button>
           </div>
         </div>
@@ -329,7 +319,7 @@ const ClientRow = ({ client, onView, onDelete }) => {
       <td className="py-3.5 px-4 md:px-6">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-xs flex-shrink-0">
-            {client.company.charAt(0).toUpperCase()}
+            {(client.company || 'C').charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="font-medium text-gray-800">{client.company}</div>
@@ -426,7 +416,7 @@ const ClientDetailModal = ({ client, onClose }) => {
         <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg">
-              {client.company.charAt(0)}
+              {(client.company || 'C').charAt(0)}
             </div>
             <div>
               <h2 className="text-lg font-bold text-gray-800">{client.company}</h2>
@@ -441,15 +431,15 @@ const ClientDetailModal = ({ client, onClose }) => {
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-400">Contact Person</p>
-              <p className="font-medium text-gray-800">{client.contactPerson}</p>
+              <p className="font-medium text-gray-800">{client.contactPerson || '-'}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-400">Phone</p>
-              <p className="font-medium text-gray-800">{client.phone}</p>
+              <p className="font-medium text-gray-800">{client.phone || '-'}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-400">Vehicles</p>
-              <p className="font-medium text-gray-800">{client.vehicleCount}</p>
+              <p className="font-medium text-gray-800">{client.vehicleCount || 0}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-400">Status</p>
@@ -462,16 +452,16 @@ const ClientDetailModal = ({ client, onClose }) => {
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-400">Joined</p>
-              <p className="font-medium text-gray-800">{client.joined}</p>
+              <p className="font-medium text-gray-800">{client.joined || '-'}</p>
             </div>
             <div className="bg-gray-50 rounded-xl p-4">
               <p className="text-xs text-gray-400">Total Spent</p>
-              <p className="font-medium text-gray-800">${client.totalSpent.toLocaleString()}</p>
+              <p className="font-medium text-gray-800">${(client.totalSpent || 0).toLocaleString()}</p>
             </div>
           </div>
           <div className="bg-indigo-50 rounded-xl p-4 border border-indigo-100">
             <p className="text-xs text-gray-500">Contracts</p>
-            <p className="text-lg font-bold text-indigo-700">{client.contracts} active contracts</p>
+            <p className="text-lg font-bold text-indigo-700">{client.contracts || 0} active contracts</p>
           </div>
         </div>
       </div>
@@ -488,6 +478,7 @@ const AddClientModal = ({ onClose, onAdd }) => {
     phone: '',
     vehicleCount: 0,
     status: 'active',
+    address: '',
   });
 
   const handleSubmit = (e) => {
@@ -532,10 +523,9 @@ const AddClientModal = ({ onClose, onAdd }) => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
             <input
               type="text"
-              required
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
               value={form.contactPerson}
               onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
@@ -551,13 +541,12 @@ const AddClientModal = ({ onClose, onAdd }) => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vehicle Count</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
             <input
-              type="number"
-              min="0"
+              type="text"
               className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none"
-              value={form.vehicleCount}
-              onChange={(e) => setForm({ ...form, vehicleCount: e.target.value })}
+              value={form.address}
+              onChange={(e) => setForm({ ...form, address: e.target.value })}
             />
           </div>
           <div>

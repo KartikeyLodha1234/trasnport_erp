@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Eye,
   Pencil,
@@ -10,42 +11,14 @@ import {
   AlertCircle,
   CheckCircle,
   MapPin,
-  Truck,
-  Clock
+  Truck
 } from "lucide-react";
 
-export default function Routes() {
-  // State Management
-  const [routes, setRoutes] = useState([
-    {
-      id: "#1001",
-      pickup: "Mumbai",
-      destination: "Delhi",
-      via: "Jaipur",
-      stoppage: "Ahmedabad",
-      status: "active",
-      createdAt: "2024-01-15"
-    },
-    {
-      id: "#1002",
-      pickup: "Pune",
-      destination: "Chennai",
-      via: "Hyderabad",
-      stoppage: "Bangalore",
-      status: "active",
-      createdAt: "2024-01-14"
-    },
-    {
-      id: "#1003",
-      pickup: "Delhi",
-      destination: "Mumbai",
-      via: "Indore",
-      stoppage: "Ujjain",
-      status: "inactive",
-      createdAt: "2024-01-13"
-    }
-  ]);
+const API_BASE = "http://localhost:8001/api";
 
+export default function Routes() {
+  const [routes, setRoutes] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -53,7 +26,6 @@ export default function Routes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [formData, setFormData] = useState({
-    id: "",
     pickup: "",
     destination: "",
     via: "",
@@ -61,11 +33,33 @@ export default function Routes() {
     status: "active"
   });
 
-  // Generate ID
-  const generateId = () => {
-    const count = routes.length + 1;
-    return `#${String(count).padStart(4, '0')}`;
+  // Fetch routes from API
+  const fetchRoutes = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE}/routes/`);
+      const data = response.data.data || response.data;
+      const normalized = data.map((route) => ({
+        ...route,
+        id: route.id,
+        pickup: route.pickup_location || "",
+        destination: route.destination || "",
+        via: route.via || "N/A",
+        stoppage: route.stoppage || "N/A",
+        status: route.status || "active",
+        createdAt: route.created_at ? route.created_at.split("T")[0] : ""
+      }));
+      setRoutes(normalized);
+    } catch (error) {
+      console.error("Error fetching routes:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchRoutes();
+  }, []);
 
   // Handle Form Input Change
   const handleInputChange = (e) => {
@@ -77,56 +71,75 @@ export default function Routes() {
   };
 
   // Create New Route
-  const handleCreateRoute = () => {
-    // Validation
+  const handleCreateRoute = async () => {
     if (!formData.pickup || !formData.destination) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const newRoute = {
-      id: generateId(),
-      pickup: formData.pickup,
-      destination: formData.destination,
-      via: formData.via || "N/A",
-      stoppage: formData.stoppage || "N/A",
-      status: "active",
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    setRoutes([...routes, newRoute]);
-    resetForm();
-    setOpen(false);
+    try {
+      const response = await axios.post(`${API_BASE}/routes/`, {
+        pickup_location: formData.pickup,
+        destination: formData.destination,
+        via: formData.via,
+        stoppage: formData.stoppage,
+        status: formData.status
+      });
+      // Refetch to get the actual created record with ID
+      fetchRoutes();
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      console.error("Error creating route:", error);
+      alert("Failed to create route: " + (error.response?.data?.detail || error.message));
+    }
   };
 
   // Edit Route
-  const handleEditRoute = () => {
+  const handleEditRoute = async () => {
     if (!formData.pickup || !formData.destination) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const updatedRoutes = routes.map(route => 
-      route.id === selectedRoute.id ? {
-        ...route,
-        pickup: formData.pickup,
+    try {
+      await axios.put(`${API_BASE}/routes/${selectedRoute.id}`, {
+        pickup_location: formData.pickup,
         destination: formData.destination,
-        via: formData.via || "N/A",
-        stoppage: formData.stoppage || "N/A",
+        via: formData.via,
+        stoppage: formData.stoppage,
         status: formData.status
-      } : route
-    );
-
-    setRoutes(updatedRoutes);
-    resetForm();
-    setEditOpen(false);
-    setSelectedRoute(null);
+      });
+      const updatedRoutes = routes.map(route =>
+        route.id === selectedRoute.id ? {
+          ...route,
+          pickup: formData.pickup,
+          destination: formData.destination,
+          via: formData.via || "N/A",
+          stoppage: formData.stoppage || "N/A",
+          status: formData.status
+        } : route
+      );
+      setRoutes(updatedRoutes);
+      resetForm();
+      setEditOpen(false);
+      setSelectedRoute(null);
+    } catch (error) {
+      console.error("Error updating route:", error);
+      alert("Failed to update route");
+    }
   };
 
   // Delete Route
-  const handleDeleteRoute = (id) => {
+  const handleDeleteRoute = async (id) => {
     if (window.confirm("Are you sure you want to delete this route?")) {
-      setRoutes(routes.filter(route => route.id !== id));
+      try {
+        await axios.delete(`${API_BASE}/routes/${id}`);
+        setRoutes(routes.filter(route => route.id !== id));
+      } catch (error) {
+        console.error("Error deleting route:", error);
+        alert("Failed to delete route");
+      }
     }
   };
 
@@ -140,7 +153,6 @@ export default function Routes() {
   const openEditModal = (route) => {
     setSelectedRoute(route);
     setFormData({
-      id: route.id,
       pickup: route.pickup,
       destination: route.destination,
       via: route.via,
@@ -153,7 +165,6 @@ export default function Routes() {
   // Reset Form
   const resetForm = () => {
     setFormData({
-      id: "",
       pickup: "",
       destination: "",
       via: "",
@@ -164,14 +175,14 @@ export default function Routes() {
 
   // Filter Routes
   const filteredRoutes = routes.filter(route => {
-    const matchesSearch = 
-      route.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch =
+      String(route.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
       route.pickup.toLowerCase().includes(searchTerm.toLowerCase()) ||
       route.destination.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      route.via.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      (route.via || "").toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = filterStatus === "all" || route.status === filterStatus;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -289,10 +300,16 @@ export default function Routes() {
               </tr>
             </thead>
             <tbody>
-              {filteredRoutes.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="py-8 text-center text-gray-500">
+                    <p>Loading routes...</p>
+                  </td>
+                </tr>
+              ) : filteredRoutes.length > 0 ? (
                 filteredRoutes.map((item) => (
                   <tr key={item.id} className="border-b hover:bg-gray-50">
-                    <td className="px-5 py-4 font-medium text-gray-900">{item.id}</td>
+                    <td className="px-5 py-4 font-medium text-gray-900">#{item.id}</td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center gap-1">
                         <MapPin size={14} className="text-blue-500" />
@@ -308,8 +325,8 @@ export default function Routes() {
                     <td className="px-5 py-4">{item.via}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                        item.status === "active" 
-                          ? "bg-green-100 text-green-700" 
+                        item.status === "active"
+                          ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
                       }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${
@@ -375,7 +392,7 @@ export default function Routes() {
           <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-xl font-semibold">➕ New Route</h2>
-              <button 
+              <button
                 onClick={() => {
                   setOpen(false);
                   resetForm();
@@ -418,9 +435,7 @@ export default function Routes() {
 
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Via
-                  </label>
+                  <label className="mb-2 block text-sm font-medium">Via</label>
                   <input
                     type="text"
                     name="via"
@@ -431,9 +446,7 @@ export default function Routes() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Stoppage
-                  </label>
+                  <label className="mb-2 block text-sm font-medium">Stoppage</label>
                   <input
                     type="text"
                     name="stoppage"
@@ -473,7 +486,7 @@ export default function Routes() {
           <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-xl font-semibold">👁️ Route Details</h2>
-              <button 
+              <button
                 onClick={() => setViewOpen(false)}
                 className="rounded-lg p-1 hover:bg-gray-100"
               >
@@ -484,7 +497,7 @@ export default function Routes() {
             <div className="space-y-4 p-6">
               <div>
                 <label className="text-sm font-medium text-gray-500">Route ID</label>
-                <p className="text-lg font-semibold text-gray-900">{selectedRoute.id}</p>
+                <p className="text-lg font-semibold text-gray-900">#{selectedRoute.id}</p>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -513,8 +526,8 @@ export default function Routes() {
                 <label className="text-sm font-medium text-gray-500">Status</label>
                 <p className="text-lg font-semibold">
                   <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 ${
-                    selectedRoute.status === "active" 
-                      ? "bg-green-100 text-green-700" 
+                    selectedRoute.status === "active"
+                      ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-700"
                   }`}>
                     <span className={`h-2 w-2 rounded-full ${
@@ -545,13 +558,13 @@ export default function Routes() {
         </div>
       )}
 
-      {/* Edit Route Modal - FIXED */}
+      {/* Edit Route Modal */}
       {editOpen && selectedRoute && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-xl font-semibold">✏️ Edit Route</h2>
-              <button 
+              <button
                 onClick={() => {
                   setEditOpen(false);
                   resetForm();
@@ -566,7 +579,7 @@ export default function Routes() {
             <div className="space-y-5 p-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-500">Route ID</label>
-                <p className="text-lg font-semibold text-gray-900">{selectedRoute.id}</p>
+                <p className="text-lg font-semibold text-gray-900">#{selectedRoute.id}</p>
               </div>
 
               <div className="grid gap-5 md:grid-cols-2">
@@ -600,9 +613,7 @@ export default function Routes() {
 
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Via
-                  </label>
+                  <label className="mb-2 block text-sm font-medium">Via</label>
                   <input
                     type="text"
                     name="via"
@@ -613,9 +624,7 @@ export default function Routes() {
                   />
                 </div>
                 <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Stoppage
-                  </label>
+                  <label className="mb-2 block text-sm font-medium">Stoppage</label>
                   <input
                     type="text"
                     name="stoppage"
@@ -628,9 +637,7 @@ export default function Routes() {
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Status
-                </label>
+                <label className="mb-2 block text-sm font-medium">Status</label>
                 <select
                   name="status"
                   value={formData.status}

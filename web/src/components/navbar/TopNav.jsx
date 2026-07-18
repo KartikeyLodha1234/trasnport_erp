@@ -135,16 +135,19 @@ const TopNav = () => {
       ]
     },
     { 
+         
       path: '/masters',
       icon: '📋', 
       label: 'Masters',
       dropdown: [
         { path: '/masters/clients', label: 'Clients' },
         { path: '/masters/city', label: 'City' },
+        { path: '/masters/parties', label: 'Parties' },
         { path: '/masters/vehicles', label: 'Vehicles' },
         { path: '/masters/drivershow', label: 'Drivers' },
         { path: '/masters/routes', label: 'Routes' },
         { path: '/masters/maintenance', label: 'Maintenance' },
+        { path: '/masters/branches', label: 'Branches' },
       ]
     },
     { 

@@ -11,7 +11,7 @@ export default function Routes() {
     delivery_location: ''
   });
 
-  const API_BASE = 'http://localhost:5000/api';
+  const API_BASE = 'http://localhost:8001/api';
 
   // Fetch shipments
   const fetchShipments = async () => {

@@ -14,6 +14,7 @@ export default function DriverFleetDirectory() {
     const [vehicleFormData, setVehicleFormData] = useState({
         vehicleId: '',
         vehicleType: '',
+        companyName: '',
         truckmodel: '',
         modelYear: '',
         licensePlate: '',
@@ -58,7 +59,7 @@ export default function DriverFleetDirectory() {
         if (!window.confirm("Are you sure you want to delete this vehicle?")) return;
         
         try {
-            const response = await fetch(`http://localhost:5000/api/vehicles/${id}`, { 
+            const response = await fetch(`http://localhost:8001/api/vehicles/${id}`, { 
                 method: 'DELETE' 
             });
             if (response.ok) {
@@ -72,7 +73,7 @@ export default function DriverFleetDirectory() {
     // Handle vehicle update from edit modal
     const handleUpdateVehicle = async (updatedData) => {
         try {
-            const response = await fetch(`http://localhost:5000/api/vehicles/${selectedVehicle.id}`, {
+            const response = await fetch(`http://localhost:8001/api/vehicles/${selectedVehicle.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(updatedData)
@@ -95,7 +96,7 @@ export default function DriverFleetDirectory() {
 
     const fetchVehicles = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/vehicles');
+            const response = await fetch('http://localhost:8001/api/vehicles');
             const data = await response.json();
             if (data) {
                 setVehiclesData(Array.isArray(data) ? data : (data.data || []));
@@ -116,25 +117,43 @@ export default function DriverFleetDirectory() {
 
     const handleAddVehicle = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/vehicles', {
+            // Build a clean JSON payload and exclude any File objects
+            const payload = {
+                vehicleId: vehicleFormData.vehicleId || '',
+                vehicleType: vehicleFormData.vehicleType || '',
+                companyName: vehicleFormData.companyName || '',
+                // Some forms use `truckmodel` input for year — fall back to it if modelYear missing
+                modelYear: vehicleFormData.modelYear || vehicleFormData.truckmodel || '',
+                licensePlate: vehicleFormData.licensePlate || '',
+                pucNumber: vehicleFormData.pucNumber || '',
+                notes: vehicleFormData.notes || ''
+            };
+
+            const response = await fetch('http://localhost:8001/api/vehicles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(vehicleFormData)
+                body: JSON.stringify(payload)
             });
-            
+
+            const respText = await response.text();
+            let respJson = null;
+            try { respJson = JSON.parse(respText); } catch (_) { }
+
             if (response.ok) {
                 setVehicleFormData({
-                    vehicleId: '', vehicleType: '', truckmodel: '',
+                    vehicleId: '', vehicleType: '', companyName: '', truckmodel: '',
                     modelYear: '', licensePlate: '', pucNumber: '',
                     pucExpiry: '', notes: ''
                 });
                 setIsModalOpen(false);
                 await fetchVehicles();
             } else {
-                alert("Failed to save vehicle.");
+                const message = (respJson && (respJson.detail || respJson.message)) || respText || 'Failed to save vehicle.';
+                alert(message);
             }
         } catch (err) {
             console.error("Error adding vehicle:", err);
+            alert(err.message || 'Failed to save vehicle.');
         }
     };
 
@@ -226,14 +245,14 @@ export default function DriverFleetDirectory() {
                                 </FormRow>
 
                                 <FormRow>
-                                    <FormGroup>
-                                        <label>🏷️ Truck Model</label>
-                                        <input type="text" id="truckmodel" placeholder="e.g., Cascadia" value={vehicleFormData.truckmodel} onChange={handleVehicleChange} />
-                                    </FormGroup>
-                                    <FormGroup>
-                                        <label>📅 Model Year</label>
-                                        <input type="text" id="modelYear" placeholder="e.g., 2023" value={vehicleFormData.modelYear} onChange={handleVehicleChange} />
-                                    </FormGroup>
+                                                                <FormGroup>
+                                                                    <label>🏢 Company Owner</label>
+                                                                    <input type="text" id="companyName" placeholder="Company name" value={vehicleFormData.companyName} onChange={handleVehicleChange} />
+                                                                </FormGroup>
+                                                                <FormGroup>
+                                                                    <label>🏷️ Truck Model</label>
+                                                                    <input type="text" id="truckmodel" placeholder="e.g., Cascadia" value={vehicleFormData.truckmodel} onChange={handleVehicleChange} />
+                                                                </FormGroup>
                                 </FormRow>
 
                                 <FormRow>

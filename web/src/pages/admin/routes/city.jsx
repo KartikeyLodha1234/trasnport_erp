@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import axios from "axios";
 import {
   Eye,
   Pencil,
@@ -14,55 +15,11 @@ import {
   Globe
 } from "lucide-react";
 
-export default function Cities() {
-  const [cities, setCities] = useState([
-    {
-      id: "#C1001",
-      name: "Mumbai",
-      state: "Maharashtra",
-      country: "India",
-      pincode: "400001",
-      status: "active",
-      createdAt: "2024-01-15"
-    },
-    {
-      id: "#C1002",
-      name: "Delhi",
-      state: "Delhi",
-      country: "India",
-      pincode: "110001",
-      status: "active",
-      createdAt: "2024-01-14"
-    },
-    {
-      id: "#C1003",
-      name: "Bangalore",
-      state: "Karnataka",
-      country: "India",
-      pincode: "560001",
-      status: "active",
-      createdAt: "2024-01-13"
-    },
-    {
-      id: "#C1004",
-      name: "Chennai",
-      state: "Tamil Nadu",
-      country: "India",
-      pincode: "600001",
-      status: "inactive",
-      createdAt: "2024-01-12"
-    },
-    {
-      id: "#C1005",
-      name: "Hyderabad",
-      state: "Telangana",
-      country: "India",
-      pincode: "500001",
-      status: "active",
-      createdAt: "2024-01-11"
-    }
-  ]);
+const API_BASE = "http://localhost:8001/api";
 
+export default function Cities() {
+  const [cities, setCities] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [viewOpen, setViewOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -70,19 +27,38 @@ export default function Cities() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [formData, setFormData] = useState({
-    id: "",
     name: "",
-    state: "",
-    country: "",
-    pincode: "",
-    status: "active"
+    state: ""
   });
 
-  // Generate ID
-  const generateId = () => {
-    const count = cities.length + 1;
-    return `#C${String(count).padStart(4, '0')}`;
+  // Fetch cities from API
+  const fetchCities = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE}/cities/`);
+      const data = response.data.data || response.data;
+      // Normalize for frontend
+      const normalized = data.map((city) => ({
+        ...city,
+        id: city.id,
+        name: city.name,
+        state: city.state || "",
+        country: city.country || "India",
+        pincode: city.pincode || "N/A",
+        status: city.status || "active",
+        createdAt: city.created_at ? city.created_at.split("T")[0] : ""
+      }));
+      setCities(normalized);
+    } catch (error) {
+      console.error("Error fetching cities:", error);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    fetchCities();
+  }, []);
 
   // Handle Form Input Change
   const handleInputChange = (e) => {
@@ -94,56 +70,74 @@ export default function Cities() {
   };
 
   // Create New City
-  const handleCreateCity = () => {
-    // Validation
-    if (!formData.name || !formData.state || !formData.country) {
+  const handleCreateCity = async () => {
+    if (!formData.name || !formData.state) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const newCity = {
-      id: generateId(),
-      name: formData.name,
-      state: formData.state,
-      country: formData.country || "India",
-      pincode: formData.pincode || "N/A",
-      status: "active",
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-
-    setCities([...cities, newCity]);
-    resetForm();
-    setOpen(false);
+    try {
+      const response = await axios.post(`${API_BASE}/cities/`, {
+        name: formData.name,
+        state: formData.state
+      });
+      const created = response.data.data;
+      const newCity = {
+        ...created,
+        country: "India",
+        pincode: "N/A",
+        status: "active",
+        createdAt: created.created_at ? created.created_at.split("T")[0] : new Date().toISOString().split("T")[0]
+      };
+      setCities([...cities, newCity]);
+      resetForm();
+      setOpen(false);
+    } catch (error) {
+      console.error("Error creating city:", error);
+      alert("Failed to create city: " + (error.response?.data?.detail || error.message));
+    }
   };
 
   // Edit City
-  const handleEditCity = () => {
-    if (!formData.name || !formData.state || !formData.country) {
+  const handleEditCity = async () => {
+    if (!formData.name || !formData.state) {
       alert("Please fill in all required fields");
       return;
     }
 
-    const updatedCities = cities.map(city => 
-      city.id === selectedCity.id ? {
-        ...city,
+    try {
+      const response = await axios.put(`${API_BASE}/cities/${selectedCity.id}`, {
         name: formData.name,
-        state: formData.state,
-        country: formData.country,
-        pincode: formData.pincode || "N/A",
-        status: formData.status
-      } : city
-    );
-
-    setCities(updatedCities);
-    resetForm();
-    setEditOpen(false);
-    setSelectedCity(null);
+        state: formData.state
+      });
+      const updated = response.data.data;
+      const updatedCities = cities.map(city =>
+        city.id === selectedCity.id ? {
+          ...city,
+          name: updated.name,
+          state: updated.state
+        } : city
+      );
+      setCities(updatedCities);
+      resetForm();
+      setEditOpen(false);
+      setSelectedCity(null);
+    } catch (error) {
+      console.error("Error updating city:", error);
+      alert("Failed to update city");
+    }
   };
 
   // Delete City
-  const handleDeleteCity = (id) => {
+  const handleDeleteCity = async (id) => {
     if (window.confirm("Are you sure you want to delete this city?")) {
-      setCities(cities.filter(city => city.id !== id));
+      try {
+        await axios.delete(`${API_BASE}/cities/${id}`);
+        setCities(cities.filter(city => city.id !== id));
+      } catch (error) {
+        console.error("Error deleting city:", error);
+        alert("Failed to delete city");
+      }
     }
   };
 
@@ -157,12 +151,8 @@ export default function Cities() {
   const openEditModal = (city) => {
     setSelectedCity(city);
     setFormData({
-      id: city.id,
       name: city.name,
-      state: city.state,
-      country: city.country,
-      pincode: city.pincode,
-      status: city.status
+      state: city.state
     });
     setEditOpen(true);
   };
@@ -170,26 +160,21 @@ export default function Cities() {
   // Reset Form
   const resetForm = () => {
     setFormData({
-      id: "",
       name: "",
-      state: "",
-      country: "",
-      pincode: "",
-      status: "active"
+      state: ""
     });
   };
 
   // Filter Cities
   const filteredCities = cities.filter(city => {
-    const matchesSearch = 
-      city.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch =
+      String(city.id).toLowerCase().includes(searchTerm.toLowerCase()) ||
       city.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       city.state.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      city.country.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      city.pincode.toLowerCase().includes(searchTerm.toLowerCase());
-    
+      (city.pincode || "").toLowerCase().includes(searchTerm.toLowerCase());
+
     const matchesStatus = filterStatus === "all" || city.status === filterStatus;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -308,10 +293,16 @@ export default function Cities() {
               </tr>
             </thead>
             <tbody>
-              {filteredCities.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="py-8 text-center text-gray-500">
+                    <p>Loading cities...</p>
+                  </td>
+                </tr>
+              ) : filteredCities.length > 0 ? (
                 filteredCities.map((item) => (
                   <tr key={item.id} className="border-b hover:bg-gray-50">
-                    <td className="px-5 py-4 font-medium text-gray-900">{item.id}</td>
+                    <td className="px-5 py-4 font-medium text-gray-900">#{item.id}</td>
                     <td className="px-5 py-4">
                       <span className="inline-flex items-center gap-1">
                         <MapPin size={14} className="text-blue-500" />
@@ -323,8 +314,8 @@ export default function Cities() {
                     <td className="px-5 py-4 font-mono text-sm">{item.pincode}</td>
                     <td className="px-5 py-4">
                       <span className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium ${
-                        item.status === "active" 
-                          ? "bg-green-100 text-green-700" 
+                        item.status === "active"
+                          ? "bg-green-100 text-green-700"
                           : "bg-red-100 text-red-700"
                       }`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${
@@ -390,7 +381,7 @@ export default function Cities() {
           <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-xl font-semibold">➕ New City</h2>
-              <button 
+              <button
                 onClick={() => {
                   setOpen(false);
                   resetForm();
@@ -430,35 +421,6 @@ export default function Cities() {
                   />
                 </div>
               </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Country <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleInputChange}
-                    placeholder="Enter country name"
-                    className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Pincode
-                  </label>
-                  <input
-                    type="text"
-                    name="pincode"
-                    value={formData.pincode}
-                    onChange={handleInputChange}
-                    placeholder="Enter pincode"
-                    className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
             </div>
 
             <div className="flex justify-end gap-3 border-t px-6 py-4">
@@ -488,7 +450,7 @@ export default function Cities() {
           <div className="w-full max-w-2xl rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-xl font-semibold">👁️ City Details</h2>
-              <button 
+              <button
                 onClick={() => setViewOpen(false)}
                 className="rounded-lg p-1 hover:bg-gray-100"
               >
@@ -500,7 +462,7 @@ export default function Cities() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="text-sm font-medium text-gray-500">City ID</label>
-                  <p className="text-lg font-semibold text-gray-900">{selectedCity.id}</p>
+                  <p className="text-lg font-semibold text-gray-900">#{selectedCity.id}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">City Name</label>
@@ -533,8 +495,8 @@ export default function Cities() {
                   <label className="text-sm font-medium text-gray-500">Status</label>
                   <p className="text-lg font-semibold">
                     <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 ${
-                      selectedCity.status === "active" 
-                        ? "bg-green-100 text-green-700" 
+                      selectedCity.status === "active"
+                        ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
                     }`}>
                       <span className={`h-2 w-2 rounded-full ${
@@ -572,7 +534,7 @@ export default function Cities() {
           <div className="w-full max-w-3xl rounded-xl bg-white shadow-xl">
             <div className="flex items-center justify-between border-b px-6 py-4">
               <h2 className="text-xl font-semibold">✏️ Edit City</h2>
-              <button 
+              <button
                 onClick={() => {
                   setEditOpen(false);
                   resetForm();
@@ -587,7 +549,7 @@ export default function Cities() {
             <div className="space-y-5 p-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-500">City ID</label>
-                <p className="text-lg font-semibold text-gray-900">{selectedCity.id}</p>
+                <p className="text-lg font-semibold text-gray-900">#{selectedCity.id}</p>
               </div>
 
               <div className="grid gap-5 md:grid-cols-2">
@@ -617,50 +579,6 @@ export default function Cities() {
                     className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
                   />
                 </div>
-              </div>
-
-              <div className="grid gap-5 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Country <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="country"
-                    value={formData.country}
-                    onChange={handleInputChange}
-                    placeholder="Enter country name"
-                    className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-medium">
-                    Pincode
-                  </label>
-                  <input
-                    type="text"
-                    name="pincode"
-                    value={formData.pincode}
-                    onChange={handleInputChange}
-                    placeholder="Enter pincode"
-                    className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-medium">
-                  Status
-                </label>
-                <select
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                </select>
               </div>
             </div>
 
