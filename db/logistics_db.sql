@@ -175,7 +175,7 @@ CREATE TABLE payments (
     driver_id INT NOT NULL,
     shipment_id INT NULL,
     amount DECIMAL(10,2) NOT NULL,
-    checkpoint VARCHAR(255) NULL,
+    [checkpoint] VARCHAR(255) NULL,
     upi_id VARCHAR(255) NULL,
     upi_ref VARCHAR(255) NULL,
     note TEXT NULL,
@@ -267,7 +267,26 @@ GO
 CREATE INDEX idx_admin_activities_admin_id ON admin_activities(admin_id);
 CREATE INDEX idx_admin_activities_created_at ON admin_activities(created_at);
 GO
+CREATE PROCEDURE sp_GetAdminActivities
+    @admin_id INT = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
 
+    SELECT
+        id,
+        admin_id,
+        activity_type,
+        ip_address,
+        user_agent,
+        details,
+        created_at
+    FROM admin_activities
+    WHERE @admin_id IS NULL
+       OR admin_id = @admin_id
+    ORDER BY created_at DESC;
+END;
+GO
 -- =============================================
 -- Table: admin_sessions
 -- =============================================
