@@ -140,7 +140,6 @@ const TopNav = () => {
       icon: '📋', 
       label: 'Masters',
       dropdown: [
-        { path: '/masters/clients', label: 'Clients' },
         { path: '/masters/city', label: 'City' },
         { path: '/masters/parties', label: 'Parties' },
         { path: '/masters/vehicles', label: 'Vehicles' },

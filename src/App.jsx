@@ -10,7 +10,6 @@ import Login from "../web/src/pages/login.jsx";
 // Dashboard
 import MaintenanceRegistryLog from "../web/src/pages/admin/master/maintenancelogs.jsx";
 import routes from "../web/src/pages/admin/routes/routes.jsx";
-import ClientsPage from "../web/src/pages/admin/master/client.jsx";
 import Home from "../web/src/pages/admin/dashboard/Home.jsx";
 import LiveMap from "../web/src/pages/admin/dashboard/live-map.jsx";
 import CreateLR from '../web/src/pages/admin/booking/lr.jsx';
@@ -167,10 +166,7 @@ function App() {
           path="/masters" 
           element={ProtectedRouteWithLayout(() => <div>Masters Page</div>)} 
         />
-        <Route 
-          path="/masters/clients" 
-          element={ProtectedRouteWithLayout(ClientsPage)} 
-        />
+
         <Route 
           path="/masters/city" 
           element={ProtectedRouteWithLayout(Cities)} 

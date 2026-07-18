@@ -362,15 +362,12 @@ const CreateLR = () => {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     
-    // Generate LR Number
     const lrSeq = String(Math.floor(Math.random() * 9000) + 1000);
     const lrNumber = `LR${year}${month}${day}${lrSeq}`;
     
-    // Generate Invoice No.
     const invSeq = String(Math.floor(Math.random() * 900) + 100);
     const invoiceNo = `INV${year}${month}${day}${invSeq}`;
     
-    // Generate E-Way Bill No.
     const ewaySeq = String(Math.floor(Math.random() * 9000000000) + 1000000000);
     const ewayBill = ewaySeq;
     
@@ -404,6 +401,22 @@ const CreateLR = () => {
       setConsigneeGST(party ? `GSTIN: ${party.gstin || 'N/A'}` : '');
     }
   };
+
+  // Auto-determine GST type based on party states
+  useEffect(() => {
+    if (formData.consignor_id && formData.consignee_id) {
+      const consignor = parties.find(p => p.id === parseInt(formData.consignor_id));
+      const consignee = parties.find(p => p.id === parseInt(formData.consignee_id));
+      
+      if (consignor && consignee && consignor.state && consignee.state) {
+        if (consignor.state.toLowerCase() === consignee.state.toLowerCase()) {
+          setFormData(prev => ({ ...prev, gst_type: 'cgst_sgst' }));
+        } else {
+          setFormData(prev => ({ ...prev, gst_type: 'igst' }));
+        }
+      }
+    }
+  }, [formData.consignor_id, formData.consignee_id, parties]);
 
   useEffect(() => {
     calculateTotal();
@@ -611,7 +624,13 @@ const CreateLR = () => {
                         <option key={party.id} value={party.id}>{party.name} - {party.city}</option>
                       ))}
                     </Select>
-                    {consignorGST && <GSTInfo>{consignorGST}</GSTInfo>}
+                    {consignorGST && (
+                      <GSTInfo>
+                        {consignorGST}
+                        {parties.find(p => p.id === parseInt(formData.consignor_id))?.state && 
+                          ` | State: ${parties.find(p => p.id === parseInt(formData.consignor_id)).state}`}
+                      </GSTInfo>
+                    )}
                   </FormGroup>
                   <FormGroup>
                     <Label>Consignee (Receiver)</Label>
@@ -621,7 +640,13 @@ const CreateLR = () => {
                         <option key={party.id} value={party.id}>{party.name} - {party.city}</option>
                       ))}
                     </Select>
-                    {consigneeGST && <GSTInfo>{consigneeGST}</GSTInfo>}
+                    {consigneeGST && (
+                      <GSTInfo>
+                        {consigneeGST}
+                        {parties.find(p => p.id === parseInt(formData.consignee_id))?.state && 
+                          ` | State: ${parties.find(p => p.id === parseInt(formData.consignee_id)).state}`}
+                      </GSTInfo>
+                    )}
                   </FormGroup>
                 </div>
               </PanelBody>

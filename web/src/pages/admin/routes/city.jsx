@@ -28,7 +28,8 @@ export default function Cities() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [formData, setFormData] = useState({
     name: "",
-    state: ""
+    state: "",
+    pincode: ""
   });
 
   // Fetch cities from API
@@ -108,7 +109,8 @@ export default function Cities() {
     try {
       const response = await axios.put(`${API_BASE}/cities/${selectedCity.id}`, {
         name: formData.name,
-        state: formData.state
+        state: formData.state,
+        pincode: formData.pincode
       });
       const updated = response.data.data;
       const updatedCities = cities.map(city =>
@@ -420,6 +422,19 @@ export default function Cities() {
                     className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
                   />
                 </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium">
+                    Pincode <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    name="pincode"
+                    value={formData.pincode}
+                    onChange={handleInputChange}
+                    placeholder="Enter pincode"
+                    className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
@@ -555,14 +570,14 @@ export default function Cities() {
               <div className="grid gap-5 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium">
-                    City Name <span className="text-red-500">*</span>
+                  Pincode <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
-                    name="name"
-                    value={formData.name}
+                    name="pincode"
+                    value={formData.pincode}
                     onChange={handleInputChange}
-                    placeholder="Enter city name"
+                    placeholder="Enter pincode"
                     className="w-full rounded-lg border px-4 py-3 outline-none focus:border-blue-500"
                   />
                 </div>
