@@ -147,6 +147,7 @@ const TopNav = () => {
         { path: '/masters/routes', label: 'Routes' },
         { path: '/masters/maintenance', label: 'Maintenance' },
         { path: '/masters/branches', label: 'Branches' },
+        { path: '/masters/challan', label: 'Challan' },
       ]
     },
     { 

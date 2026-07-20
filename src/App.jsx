@@ -2,7 +2,7 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import styled from 'styled-components';
-
+import { AuthProvider } from './contexts/AuthContext.jsx';
 import TopNav from "../web/src/components/navbar/TopNav.jsx";
 import ProtectedRoute from "../web/src/components/ProtectedRoute.jsx";
 
@@ -31,6 +31,7 @@ import Cities from "../web/src/pages/admin/routes/city.jsx";
 import BookingHistory from "../web/src/pages/admin/booking/bookinghistory.jsx";
 import Parties from "../web/src/pages/admin/master/Parties.jsx";
 import Branches from "../web/src/pages/admin/master/Branches.jsx";
+import Challan from "../web/src/pages/admin/challan/Challan.jsx";
 // ===== STYLED COMPONENTS =====
 const LayoutWrapper = styled.div`
   display: flex;
@@ -73,170 +74,169 @@ function App() {
   );
 
   return (
-    <Router>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+    <AuthProvider>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
-        {/* Dashboard Routes */}
-        <Route path="/dashboard" element={ProtectedRouteWithLayout(Home)} />
-        <Route path="/home/live-map" element={ProtectedRouteWithLayout(LiveMap)} />
-        <Route path="/home/fleet-status" element={ProtectedRouteWithLayout(FleetStatus)} />
+          {/* Dashboard Routes */}
+          <Route path="/dashboard" element={ProtectedRouteWithLayout(Home)} />
+          <Route path="/home/live-map" element={ProtectedRouteWithLayout(LiveMap)} />
+          <Route path="/home/fleet-status" element={ProtectedRouteWithLayout(FleetStatus)} />
 
-        {/* Shipment Routes */}
-        <Route path="/shipments" element={ProtectedRouteWithLayout(AllShipments)} />
-        <Route path="/shipments/create" element={ProtectedRouteWithLayout(CreateLR)} />
-        <Route path="/shipments/delayed" element={ProtectedRouteWithLayout(DelayedShipments)} />
-        <Route path="/shipments/track" element={ProtectedRouteWithLayout(Track)} />
-        <Route 
-          path="/shipments/history" 
-          element={ProtectedRouteWithLayout(BookingHistory)} 
-        />
+          {/* Shipment Routes */}
+          <Route path="/shipments" element={ProtectedRouteWithLayout(AllShipments)} />
+          <Route path="/shipments/create" element={ProtectedRouteWithLayout(CreateLR)} />
+          <Route path="/shipments/delayed" element={ProtectedRouteWithLayout(DelayedShipments)} />
+          <Route path="/shipments/track" element={ProtectedRouteWithLayout(Track)} />
+          <Route 
+            path="/shipments/history" 
+            element={ProtectedRouteWithLayout(BookingHistory)} 
+          />
 
-        {/* Delivery Routes */}
-        <Route 
-          path="/delivery" 
-          element={ProtectedRouteWithLayout(() => <div>Delivery Page</div>)} 
-        />
-        <Route 
-          path="/delivery/driver-shipments" 
-          element={ProtectedRouteWithLayout(DriverShipment)} 
-        />
-        <Route 
-          path="/delivery/track" 
-          element={ProtectedRouteWithLayout(Track)} 
-        />
-        <Route 
-          path="/delivery/completed" 
-          element={ProtectedRouteWithLayout(() => <div>Completed Deliveries Page</div>)} 
-        />
+          {/* Delivery Routes */}
+          <Route 
+            path="/delivery" 
+            element={ProtectedRouteWithLayout(() => <div>Delivery Page</div>)} 
+          />
+          <Route 
+            path="/delivery/driver-shipments" 
+            element={ProtectedRouteWithLayout(DriverShipment)} 
+          />
+          <Route 
+            path="/delivery/track" 
+            element={ProtectedRouteWithLayout(Track)} 
+          />
+          <Route 
+            path="/delivery/completed" 
+            element={ProtectedRouteWithLayout(() => <div>Completed Deliveries Page</div>)} 
+          />
 
-        <Route 
-  path="/masters/branches" 
-  element={ProtectedRouteWithLayout(Branches)} 
-/>
+          <Route 
+            path="/masters/branches" 
+            element={ProtectedRouteWithLayout(Branches)} 
+          />
+          <Route 
+            path="/masters/challan" 
+            element={ProtectedRouteWithLayout(Challan)} 
+          />
+          
+          {/* Accounts Routes */}
+          <Route 
+            path="/accounts" 
+            element={ProtectedRouteWithLayout(() => <div>Accounts Page</div>)} 
+          />
+          <Route 
+            path="/accounts/overview" 
+            element={ProtectedRouteWithLayout(() => <div>Accounts Overview Page</div>)} 
+          />
+          <Route 
+            path="/accounts/transactions" 
+            element={ProtectedRouteWithLayout(Transactions, { requiredRole: 'admin' })} 
+          />
+          <Route 
+            path="/accounts/receivables" 
+            element={ProtectedRouteWithLayout(() => <div>Receivables Page</div>)} 
+          />
+          <Route 
+            path="/accounts/payables" 
+            element={ProtectedRouteWithLayout(() => <div>Payables Page</div>)} 
+          />
 
-        {/* Accounts Routes */}
-        <Route 
-          path="/accounts" 
-          element={ProtectedRouteWithLayout(() => <div>Accounts Page</div>)} 
-        />
-        <Route 
-          path="/accounts/overview" 
-          element={ProtectedRouteWithLayout(() => <div>Accounts Overview Page</div>)} 
-        />
-      <Route 
-  path="/accounts/transactions" 
-  element={ProtectedRouteWithLayout(Transactions, { requiredRole: 'admin' })} 
-/>
-        <Route 
-          path="/accounts/receivables" 
-          element={ProtectedRouteWithLayout(() => <div>Receivables Page</div>)} 
-        />
-        <Route 
-          path="/accounts/payables" 
-          element={ProtectedRouteWithLayout(() => <div>Payables Page</div>)} 
-        />
+          {/* Reports Routes */}
+          <Route 
+            path="/reports" 
+            element={ProtectedRouteWithLayout(() => <div>Reports Page</div>)} 
+          />
+          <Route 
+            path="/reports/sales" 
+            element={ProtectedRouteWithLayout(() => <div>Sales Report Page</div>)} 
+          />
+          <Route 
+            path="/reports/financial" 
+            element={ProtectedRouteWithLayout(() => <div>Financial Report Page</div>)} 
+          />
+          <Route 
+            path="/reports/operational" 
+            element={ProtectedRouteWithLayout(() => <div>Operational Report Page</div>)} 
+          />
+          <Route 
+            path="/reports/custom" 
+            element={ProtectedRouteWithLayout(() => <div>Custom Report Page</div>)} 
+          />
 
-        {/* Reports Routes */}
-        <Route 
-          path="/reports" 
-          element={ProtectedRouteWithLayout(() => <div>Reports Page</div>)} 
-        />
-        <Route 
-          path="/reports/sales" 
-          element={ProtectedRouteWithLayout(() => <div>Sales Report Page</div>)} 
-        />
-        <Route 
-          path="/reports/financial" 
-          element={ProtectedRouteWithLayout(() => <div>Financial Report Page</div>)} 
-        />
-        <Route 
-          path="/reports/operational" 
-          element={ProtectedRouteWithLayout(() => <div>Operational Report Page</div>)} 
-        />
-        <Route 
-          path="/reports/custom" 
-          element={ProtectedRouteWithLayout(() => <div>Custom Report Page</div>)} 
-        />
+          {/* Masters Routes */}
+          <Route 
+            path="/masters" 
+            element={ProtectedRouteWithLayout(() => <div>Masters Page</div>)} 
+          />
+          <Route 
+            path="/masters/city" 
+            element={ProtectedRouteWithLayout(Cities)} 
+          />
+          <Route 
+            path="/masters/vehicles" 
+            element={ProtectedRouteWithLayout(VehicleList, { requiredRole: 'admin' })} 
+          />
+          <Route 
+            path="/masters/parties" 
+            element={ProtectedRouteWithLayout(Parties)} 
+          />
+          <Route 
+            path="/vehicle-view/:id?" 
+            element={ProtectedRouteWithLayout(VehicleView, { requiredRole: 'admin' })} 
+          />
+          <Route 
+            path="/vehicle-edit/:id?" 
+            element={ProtectedRouteWithLayout(VehicleEdit, { requiredRole: 'admin' })} 
+          />
+          <Route 
+            path="/masters/drivershow" 
+            element={ProtectedRouteWithLayout(DriverShow, { requiredRole: 'admin' })} 
+          />
+          <Route 
+            path="/masters/routes" 
+            element={ProtectedRouteWithLayout(routes)} 
+          />
+          <Route 
+            path="/masters/maintenance" 
+            element={ProtectedRouteWithLayout(MaintenanceRegistryLog)} 
+          />
 
-        {/* Masters Routes */}
-        <Route 
-          path="/masters" 
-          element={ProtectedRouteWithLayout(() => <div>Masters Page</div>)} 
-        />
+          {/* Settings Routes */}
+          <Route 
+            path="/settings" 
+            element={ProtectedRouteWithLayout(CompanySettings)} 
+          />
+          <Route 
+            path="/profile" 
+            element={ProtectedRouteWithLayout(Profile)} 
+          />
+          <Route path="/wallet" element={ProtectedRouteWithLayout(AdminWallet)} />
+          <Route 
+            path="/settings/company" 
+            element={ProtectedRouteWithLayout(CompanySettings)} 
+          />
+          <Route 
+            path="/settings/users" 
+            element={ProtectedRouteWithLayout(() => <div>User Management Page</div>)} 
+          />
+          <Route 
+            path="/settings/permissions" 
+            element={ProtectedRouteWithLayout(() => <div>Permissions Page</div>)} 
+          />
+          <Route 
+            path="/settings/integrations" 
+            element={ProtectedRouteWithLayout(() => <div>Integrations Page</div>)} 
+          />
 
-        <Route 
-          path="/masters/city" 
-          element={ProtectedRouteWithLayout(Cities)} 
-        />
-        <Route 
-          path="/masters/vehicles" 
-          element={ProtectedRouteWithLayout(VehicleList, { requiredRole: 'admin' })} 
-        />
-
-        <Route 
-  path="/masters/parties" 
-  element={ProtectedRouteWithLayout(Parties)} 
-/>
-        <Route 
-          path="/vehicle-view/:id?" 
-          element={ProtectedRouteWithLayout(VehicleView, { requiredRole: 'admin' })} 
-        />
-        <Route 
-          path="/vehicle-edit/:id?" 
-          element={ProtectedRouteWithLayout(VehicleEdit, { requiredRole: 'admin' })} 
-        />
-        <Route 
-          path="/masters/drivershow" 
-          element={ProtectedRouteWithLayout(DriverShow, { requiredRole: 'admin' })} 
-        />
-        <Route 
-          path="/masters/routes" 
-          element={ProtectedRouteWithLayout(routes)} 
-        />
-        <Route 
-          path="/masters/maintenance" 
-          element={ProtectedRouteWithLayout(MaintenanceRegistryLog)} 
-        />
-
-        {/* Settings Routes */}
-        <Route 
-          path="/settings" 
-          element={ProtectedRouteWithLayout(CompanySettings)} 
-        />
-        {/* Profile - both routes point to the same component */}
-        <Route 
-          path="/profile" 
-          element={ProtectedRouteWithLayout(Profile)} 
-        />
-        {/* <Route 
-          path="/settings/profile" 
-          element={ProtectedRouteWithLayout(Profile)} 
-        /> */}
-        <Route path="/wallet" element={ProtectedRouteWithLayout(AdminWallet)} />
-        <Route 
-          path="/settings/company" 
-          element={ProtectedRouteWithLayout(CompanySettings)} 
-        />
-        <Route 
-          path="/settings/users" 
-          element={ProtectedRouteWithLayout(() => <div>User Management Page</div>)} 
-        />
-        <Route 
-          path="/settings/permissions" 
-          element={ProtectedRouteWithLayout(() => <div>Permissions Page</div>)} 
-        />
-        <Route 
-          path="/settings/integrations" 
-          element={ProtectedRouteWithLayout(() => <div>Integrations Page</div>)} 
-        />
-
-        {/* Catch-all route for 404 */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Router>
+          {/* Catch-all route for 404 */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Router>
+    </AuthProvider>
   );
 }
 
