@@ -1,0 +1,11 @@
+CREATE TABLE branches (
+    id INT IDENTITY(1,1) NOT NULL,
+    name NVARCHAR(255) NOT NULL,
+    address NVARCHAR(500) NULL,
+    city NVARCHAR(100) NULL,
+    state NVARCHAR(100) NULL,
+    created_at DATETIME DEFAULT GETDATE(),
+
+    CONSTRAINT PK_branches PRIMARY KEY (id)
+);
+GO
