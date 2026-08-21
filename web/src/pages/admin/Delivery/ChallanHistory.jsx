@@ -37,7 +37,7 @@ export default function ChallanHistory() {
   const [showExpenseForm, setShowExpenseForm] = useState(false);
 
   const [expenseData, setExpenseData] = useState({
-    challanId: "",
+    challanId: "", // This will store the numeric ID
     category: "",
     amount: "",
     description: "",
@@ -117,11 +117,7 @@ export default function ChallanHistory() {
 
       console.log("Expenses API:", data);
 
-      const expenseList =
-        data.data ||
-        data.expenses ||
-        data ||
-        [];
+      const expenseList = data.data || data.expenses || data || [];
 
       if (!Array.isArray(expenseList)) {
         setExpenses([]);
@@ -137,6 +133,7 @@ export default function ChallanHistory() {
         receiptNumber: expense.receipt_number,
       }));
 
+      console.log("✅ Normalized expenses:", normalizedExpenses);
       setExpenses(normalizedExpenses);
     } catch (error) {
       console.error("Error fetching expenses:", error);
@@ -184,10 +181,7 @@ export default function ChallanHistory() {
 
         const msgBuffer = new TextEncoder().encode(payloadString);
 
-        const hashBuffer = await crypto.subtle.digest(
-          "SHA-256",
-          msgBuffer
-        );
+        const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
 
         const hashArray = Array.from(new Uint8Array(hashBuffer));
 
@@ -209,7 +203,53 @@ export default function ChallanHistory() {
   };
 
   // =========================
-  // ADD EXPENSE
+  // GET EXPENSES FOR CHALLAN - FIXED
+  // =========================
+  const getChallanExpenses = (challan) => {
+    const challanId = challan.challan_id || challan.id;
+    const challanNo = challan.challan_no;
+
+    // Debug logging
+    console.log("🔍 Checking challan:", {
+      id: challanId,
+      no: challanNo,
+      name: challan.driver_name
+    });
+
+    const matched = expenses.filter((expense) => {
+      const expenseChallanId = expense.challan_id ?? expense.challanId;
+      const expenseChallanNo = expense.challan_no;
+
+      // Primary match: numeric ID comparison
+      const idMatch =
+        expenseChallanId != null &&
+        challanId != null &&
+        !Number.isNaN(Number(expenseChallanId)) &&
+        !Number.isNaN(Number(challanId)) &&
+        Number(expenseChallanId) === Number(challanId);
+
+      // Fallback: challan number match (for legacy data)
+      const noMatch =
+        expenseChallanNo &&
+        challanNo &&
+        String(expenseChallanNo).trim().toLowerCase() ===
+          String(challanNo).trim().toLowerCase();
+
+      const isMatch = idMatch || noMatch;
+      
+      if (isMatch) {
+        console.log("  ✅ MATCH FOUND for expense:", expense.expense_id);
+      }
+      
+      return isMatch;
+    });
+
+    console.log(`  ✅ Found ${matched.length} expenses for challan ${challanNo}`);
+    return matched;
+  };
+
+  // =========================
+  // ADD EXPENSE - FIXED
   // =========================
   const handleAddExpense = async (e) => {
     e.preventDefault();
@@ -224,7 +264,7 @@ export default function ChallanHistory() {
     }
 
     try {
-      // Find the selected challan
+      // Find the selected challan to get its numeric ID
       const selectedChallan = history.find(
         c => String(c.challan_id || c.id) === String(expenseData.challanId) ||
              String(c.challan_no) === String(expenseData.challanId)
@@ -236,7 +276,7 @@ export default function ChallanHistory() {
         : expenseData.challanId;
 
       const payload = {
-        challanId: String(challanIdToSend),
+        challanId: Number(challanIdToSend), // Ensure it's a number
         category: expenseData.category,
         amount: parseFloat(expenseData.amount),
         date: expenseData.date,
@@ -246,7 +286,7 @@ export default function ChallanHistory() {
         receiptNumber: expenseData.receiptNumber,
       };
 
-      console.log("Adding expense payload:", payload);
+      console.log("📤 Adding expense payload:", payload);
 
       const response = await fetch(`${API_BASE}/expenses/`, {
         method: "POST",
@@ -257,7 +297,7 @@ export default function ChallanHistory() {
       });
 
       const responseData = await response.json();
-      console.log("Add expense response:", responseData);
+      console.log("📥 Add expense response:", responseData);
 
       if (!response.ok) {
         throw new Error(responseData.detail || responseData.message || "Failed to add expense");
@@ -292,7 +332,7 @@ export default function ChallanHistory() {
   };
 
   // =========================
-  // UPDATE EXPENSE
+  // UPDATE EXPENSE - FIXED
   // =========================
   const handleUpdateExpense = async (e) => {
     e.preventDefault();
@@ -315,7 +355,7 @@ export default function ChallanHistory() {
     }
 
     try {
-      // Find the selected challan
+      // Find the selected challan to get its numeric ID
       const selectedChallan = history.find(
         c => String(c.challan_id || c.id) === String(expenseData.challanId) ||
              String(c.challan_no) === String(expenseData.challanId)
@@ -327,7 +367,7 @@ export default function ChallanHistory() {
         : expenseData.challanId;
 
       const payload = {
-        challanId: String(challanIdToSend),
+        challanId: Number(challanIdToSend), // Ensure it's a number
         category: expenseData.category,
         amount: parseFloat(expenseData.amount),
         date: expenseData.date,
@@ -337,7 +377,7 @@ export default function ChallanHistory() {
         receiptNumber: expenseData.receiptNumber,
       };
 
-      console.log("Updating expense payload:", payload);
+      console.log("📤 Updating expense payload:", payload);
 
       const response = await fetch(`${API_BASE}/expenses/${expenseId}`, {
         method: "PUT",
@@ -348,7 +388,7 @@ export default function ChallanHistory() {
       });
 
       const responseData = await response.json();
-      console.log("Update expense response:", responseData);
+      console.log("📥 Update expense response:", responseData);
 
       if (!response.ok) {
         throw new Error(responseData.detail || responseData.message || "Failed to update expense");
@@ -384,12 +424,12 @@ export default function ChallanHistory() {
   };
 
   // =========================
-  // OPEN ADD FORM
+  // OPEN ADD FORM - FIXED
   // =========================
   const openAddExpense = () => {
     setEditingExpense(null);
     setExpenseData({
-      challanId: "",
+      challanId: "", // Will store numeric ID
       category: "",
       amount: "",
       description: "",
@@ -404,24 +444,16 @@ export default function ChallanHistory() {
   };
 
   // =========================
-  // OPEN EDIT FORM
+  // OPEN EDIT FORM - FIXED
   // =========================
   const openEditExpense = (expense) => {
     setEditingExpense(expense);
 
-    // Find the associated challan
-    const associatedChallan = history.find(
-      c => String(c.challan_id || c.id) === String(expense.challan_id || expense.challanId) ||
-           String(c.challan_no) === String(expense.challan_no)
-    );
-
-    // Use the challan's numeric ID if found, otherwise use the expense's challan ID
-    const challanId = associatedChallan 
-      ? (associatedChallan.challan_id || associatedChallan.id) 
-      : (expense.challan_id || expense.challanId || "");
+    // Use the numeric ID from the expense
+    const challanId = expense.challan_id || expense.challanId || "";
 
     setExpenseData({
-      challanId: String(challanId),
+      challanId: String(challanId), // Store the numeric ID
       category: expense.category || "",
       amount: expense.amount || "",
       description: expense.description || "",
@@ -522,58 +554,44 @@ export default function ChallanHistory() {
     const rows = challanShipments
       .map(
         (s, i) =>
-          `<tr style="background:${
-            i % 2 === 0 ? "#fff" : "#f8fafc"
-          }">
+          `<tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"}">
             <td style="font-family:monospace;font-weight:700">
               ${s.lr_number || "N/A"}
             </td>
-
             <td>
               ${s.pickup_location || "N/A"}
             </td>
-
             <td>
               ${s.delivery_location || s.destination || "N/A"}
             </td>
-
             <td>
               ${s.client || "N/A"}
             </td>
-
             <td>
               ${s.consignee_name || "N/A"}
             </td>
-
             <td>
               ${s.goods_desc || "N/A"}
             </td>
-
             <td>
               ${s.weight || 0} ${s.weight_type || "kg"}
             </td>
-
             <td style="font-weight:600">
-              ₹${Number(
-                s.freight_charge || 0
-              ).toLocaleString("en-IN")}
+              ₹${Number(s.freight_charge || 0).toLocaleString("en-IN")}
             </td>
           </tr>`
       )
       .join("");
 
     const totalFreight = challanShipments.reduce(
-      (sum, s) =>
-        sum +
-        (parseFloat(s.freight_charge) || 0),
+      (sum, s) => sum + (parseFloat(s.freight_charge) || 0),
       0
     );
 
     const totalWeight = challanShipments.reduce(
       (sum, s) =>
         sum +
-        ((s.weight_type || "kg")
-          .toLowerCase() === "ton"
+        ((s.weight_type || "kg").toLowerCase() === "ton"
           ? parseFloat(s.weight) * 1000
           : parseFloat(s.weight) || 0),
       0
@@ -589,397 +607,202 @@ export default function ChallanHistory() {
 
     printWindow.document.write(`
       <!DOCTYPE html>
-
       <html>
-
       <head>
-
-      <title>
-        Challan ${challanNo}
-      </title>
-
+      <title>Challan ${challanNo}</title>
       <style>
-
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
-
       body {
-        font-family:
-          -apple-system,
-          BlinkMacSystemFont,
-          "Segoe UI",
-          Inter,
-          Roboto,
-          sans-serif;
-
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
         padding: 20px;
-
         color: #0f172a;
       }
-
       .header {
         background: #0b1220;
         color: white;
         padding: 20px 28px;
-
         display: flex;
         justify-content: space-between;
-
         border-radius: 14px 14px 0 0;
       }
-
       .header h2 {
         font-size: 21px;
       }
-
       .tag {
         background: rgba(99,102,241,0.2);
         color: #a5b4fc;
-
         padding: 5px 14px;
-
         border-radius: 6px;
-
         font-weight: 700;
         font-size: 12px;
       }
-
       .banner {
         display: flex;
         justify-content: space-between;
-
         padding: 14px 28px;
-
         background: #f8fafc;
-
-        border-bottom:
-          1px solid #e2e8f0;
+        border-bottom: 1px solid #e2e8f0;
       }
-
       .label {
         font-size: 10.5px;
         font-weight: 700;
-
         color: #94a3b8;
-
         margin-bottom: 3px;
       }
-
       .value {
         font-size: 22px;
         font-weight: 800;
-
         font-family: monospace;
       }
-
       .info-grid {
         display: grid;
-
-        grid-template-columns:
-          1fr 1fr;
-
+        grid-template-columns: 1fr 1fr;
         gap: 16px;
-
         padding: 22px 28px;
-
         margin-bottom: 18px;
       }
-
       .info-card {
-        border:
-          1px solid #e2e8f0;
-
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
-
         padding: 14px 16px;
       }
-
       .card-label {
         font-size: 10px;
-
         font-weight: 700;
-
         color: #6366f1;
-
         margin-bottom: 7px;
       }
-
       .card-name {
         font-weight: 700;
         font-size: 15px;
       }
-
       .card-detail {
         font-size: 12.5px;
         color: #64748b;
-
         margin-top: 3px;
       }
-
       .table-container {
-        border:
-          1px solid #e2e8f0;
-
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
-
         overflow: hidden;
-
-        margin:
-          0 28px 18px 28px;
+        margin: 0 28px 18px 28px;
       }
-
       table {
         width: 100%;
         border-collapse: collapse;
-
         font-size: 12.5px;
       }
-
       thead {
         background: #0b1220;
         color: white;
       }
-
       th {
         padding: 9px 12px;
-
         text-align: left;
-
         font-size: 11px;
       }
-
       td {
         padding: 9px 12px;
-
-        border-bottom:
-          1px solid #f1f5f9;
+        border-bottom: 1px solid #f1f5f9;
       }
-
       tfoot {
         background: #f0fdf4;
         font-weight: 700;
       }
-
       tfoot td {
         color: #166534;
         font-size: 14px;
       }
-
       .signatures {
         display: grid;
-
-        grid-template-columns:
-          1fr 1fr 1fr;
-
+        grid-template-columns: 1fr 1fr 1fr;
         gap: 16px;
-
-        padding:
-          0 28px;
-
+        padding: 0 28px;
         margin-bottom: 18px;
       }
-
       .sig-box {
-        border:
-          1px solid #e2e8f0;
-
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
-
         padding: 18px 16px;
-
         text-align: center;
       }
-
       .sig-line {
         height: 36px;
-
-        border-bottom:
-          1px dashed #cbd5e1;
-
+        border-bottom: 1px dashed #cbd5e1;
         margin-bottom: 8px;
       }
-
       .sig-label {
         font-size: 11px;
         color: #94a3b8;
       }
-
       .footer-note {
         background: #f8fafc;
-
-        border:
-          1px solid #e2e8f0;
-
+        border: 1px solid #e2e8f0;
         border-radius: 10px;
-
         padding: 11px 15px;
-
         font-size: 11px;
-
         color: #64748b;
-
-        margin:
-          0 28px 20px 28px;
+        margin: 0 28px 20px 28px;
       }
-
       @media print {
-
         body {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
-
       }
-
       </style>
-
       </head>
-
       <body>
-
       <div class="header">
-
         <div>
-
-          <h2>
-            FleetChain Logistics
-          </h2>
-
-          <div style="
-            font-size:11px;
-            color:rgba(255,255,255,0.6);
-            margin-top:3px
-          ">
+          <h2>FleetChain Logistics</h2>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px">
             Transport Management System
           </div>
-
         </div>
-
         <div style="text-align:right">
-
-          <div class="tag">
-            Lorry Challan
-          </div>
-
-          <div style="
-            font-size:11px;
-            color:rgba(255,255,255,0.6);
-            margin-top:3px
-          ">
+          <div class="tag">Lorry Challan</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.6);margin-top:3px">
             Master Record
           </div>
-
         </div>
-
       </div>
-
       <div class="banner">
-
         <div>
-
-          <div class="label">
-            Challan Number
-          </div>
-
-          <div class="value">
-            ${challanNo}
-          </div>
-
+          <div class="label">Challan Number</div>
+          <div class="value">${challanNo}</div>
         </div>
-
         <div style="text-align:right">
-
-          <div class="label">
-            Date Generated
-          </div>
-
-          <div
-            class="value"
-            style="
-              font-size:15px;
-              font-family:sans-serif
-            "
-          >
+          <div class="label">Date Generated</div>
+          <div class="value" style="font-size:15px;font-family:sans-serif">
             ${formattedDate}
           </div>
-
         </div>
-
       </div>
-
       <div class="info-grid">
-
         <div class="info-card">
-
-          <div class="card-label">
-            Assigned Driver
-          </div>
-
-          <div class="card-name">
-            ${
-              selectedChallan.driver_name ||
-              "N/A"
-            }
-          </div>
-
-          <div class="card-detail">
-            📞 N/A
-          </div>
-
-          <div style="
-            font-size:11.5px;
-            color:#94a3b8;
-            margin-top:2px
-          ">
-            License: N/A
-          </div>
-
+          <div class="card-label">Assigned Driver</div>
+          <div class="card-name">${selectedChallan.driver_name || "N/A"}</div>
+          <div class="card-detail">📞 N/A</div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">License: N/A</div>
         </div>
-
         <div class="info-card">
-
-          <div class="card-label">
-            Assigned Vehicle
+          <div class="card-label">Assigned Vehicle</div>
+          <div class="card-name">${selectedChallan.vehicle_code || "N/A"}</div>
+          <div class="card-detail">🚛 N/A</div>
+          <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">
+            Plate: ${selectedChallan.license_plate || "N/A"}
           </div>
-
-          <div class="card-name">
-            ${
-              selectedChallan.vehicle_code ||
-              "N/A"
-            }
-          </div>
-
-          <div class="card-detail">
-            🚛 N/A
-          </div>
-
-          <div style="
-            font-size:11.5px;
-            color:#94a3b8;
-            margin-top:2px
-          ">
-            Plate:
-            ${
-              selectedChallan.license_plate ||
-              "N/A"
-            }
-          </div>
-
         </div>
-
       </div>
-
       <div class="table-container">
-
         <table>
-
           <thead>
-
             <tr>
-
               <th>LR Number</th>
               <th>From</th>
               <th>To</th>
@@ -988,99 +811,48 @@ export default function ChallanHistory() {
               <th>Goods</th>
               <th>Weight</th>
               <th>Freight</th>
-
             </tr>
-
           </thead>
-
           <tbody>
-
             ${rows}
-
           </tbody>
-
           <tfoot>
-
             <tr>
-
-              <td
-                colspan="6"
-                style="color:#0f172a"
-              >
-                Total
-                (${challanShipments.length}
-                consignments)
+              <td colspan="6" style="color:#0f172a">
+                Total (${challanShipments.length} consignments)
               </td>
-
               <td style="color:#0f172a">
-                ${totalWeight.toLocaleString(
-                  "en-IN"
-                )}
-                kg
+                ${totalWeight.toLocaleString("en-IN")} kg
               </td>
-
               <td>
-                ₹${totalFreight.toLocaleString(
-                  "en-IN"
-                )}
+                ₹${totalFreight.toLocaleString("en-IN")}
               </td>
-
             </tr>
-
           </tfoot>
-
         </table>
-
       </div>
-
       <div class="signatures">
-
         <div class="sig-box">
-
           <div class="sig-line"></div>
-
-          <div class="sig-label">
-            Consignor Signature
-          </div>
-
+          <div class="sig-label">Consignor Signature</div>
         </div>
-
         <div class="sig-box">
-
           <div class="sig-line"></div>
-
-          <div class="sig-label">
-            Driver Signature
-          </div>
-
+          <div class="sig-label">Driver Signature</div>
         </div>
-
         <div class="sig-box">
-
           <div class="sig-line"></div>
-
-          <div class="sig-label">
-            Receiver Signature
-          </div>
-
+          <div class="sig-label">Receiver Signature</div>
         </div>
-
       </div>
-
       <div class="footer-note">
-
-        Blockchain Secured Hash:
-        ${challanHash}
-
+        Blockchain Secured Hash: ${challanHash}
       </div>
-
       </body>
-
       </html>
     `);
 
     printWindow.document.close();
-
     printWindow.print();
   };
 
@@ -1098,7 +870,6 @@ export default function ChallanHistory() {
       parking: "🅿️",
       other: "📋",
     };
-
     return icons[category] || "📋";
   };
 
@@ -1113,7 +884,6 @@ export default function ChallanHistory() {
       parking: "Parking",
       other: "Other",
     };
-
     return labels[category] || category;
   };
 
@@ -1125,7 +895,6 @@ export default function ChallanHistory() {
       upi: "UPI",
       credit_card: "Credit Card",
     };
-
     return labels[method] || method;
   };
 
@@ -1134,20 +903,10 @@ export default function ChallanHistory() {
   // =========================
   const filteredHistory = useMemo(() => {
     const q = searchTerm.toLowerCase();
-
     return history.filter((item) => {
-      const safeId = String(
-        item.challan_no || ""
-      ).toLowerCase();
-
-      const safeDriver = String(
-        item.driver_name || ""
-      ).toLowerCase();
-
-      const safePlate = String(
-        item.license_plate || ""
-      ).toLowerCase();
-
+      const safeId = String(item.challan_no || "").toLowerCase();
+      const safeDriver = String(item.driver_name || "").toLowerCase();
+      const safePlate = String(item.license_plate || "").toLowerCase();
       return (
         safeId.includes(q) ||
         safeDriver.includes(q) ||
@@ -1161,10 +920,7 @@ export default function ChallanHistory() {
   // =========================
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
-
-    return new Date(
-      dateString
-    ).toLocaleDateString("en-IN", {
+    return new Date(dateString).toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -1175,10 +931,7 @@ export default function ChallanHistory() {
 
   const formatDateShort = (dateString) => {
     if (!dateString) return "N/A";
-
-    return new Date(
-      dateString
-    ).toLocaleDateString("en-IN", {
+    return new Date(dateString).toLocaleDateString("en-IN", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -1186,1121 +939,465 @@ export default function ChallanHistory() {
   };
 
   const formatInr = (num) =>
-    `₹${Number(
-      num || 0
-    ).toLocaleString("en-IN")}`;
-
-  // =========================
-  // GET EXPENSES FOR CHALLAN
-  // =========================
-  // ✅ FIX: previously this compared expenseChallanId / challanId using
-  // String(...) equality. If one side was e.g. "5" (string) and the other
-  // 5 (number) that's fine with String(), but if either side had leading
-  // zeros, whitespace, or was accidentally a mongo/uuid-like value vs a
-  // plain int, the strict string match silently failed for every row and
-  // every expense fell into the "no expenses" branch (all "—" in the UI).
-  // Switched the ID comparison to Number(...) equality (which normalizes
-  // "5", 5, " 5 " all to the same value) and kept the challan_no fallback
-  // but trimmed + lowercased both sides for safety. Also added a one-time
-  // debug log so any remaining mismatch is immediately visible in the
-  // console instead of silently rendering "—".
-  const getChallanExpenses = (challan) => {
-    const challanId = challan.challan_id || challan.id;
-    const challanNo = challan.challan_no;
-
-    const matched = expenses.filter((expense) => {
-      const expenseChallanId = expense.challan_id ?? expense.challanId;
-      const expenseChallanNo = expense.challan_no;
-
-      const idMatch =
-        expenseChallanId != null &&
-        challanId != null &&
-        !Number.isNaN(Number(expenseChallanId)) &&
-        !Number.isNaN(Number(challanId)) &&
-        Number(expenseChallanId) === Number(challanId);
-
-      const noMatch =
-        expenseChallanNo &&
-        challanNo &&
-        String(expenseChallanNo).trim().toLowerCase() ===
-          String(challanNo).trim().toLowerCase();
-
-      return idMatch || noMatch;
-    });
-
-    // 🔍 TEMP DEBUG — remove once matching is confirmed working.
-    // Fires only when there ARE expenses loaded but none matched this
-    // particular challan, so it won't spam the console for challans that
-    // genuinely have no expenses yet.
-    if (expenses.length > 0 && matched.length === 0) {
-      console.log("No expense match for challan:", {
-        challanId,
-        challanNo,
-        sampleExpense: expenses[0],
-      });
-    }
-
-    return matched;
-  };
+    `₹${Number(num || 0).toLocaleString("en-IN")}`;
 
   // =========================
   // RENDER
   // =========================
   return (
     <Container>
-
       {/* =========================
           HEADER
       ========================= */}
-
       <PageHeader>
-
         <div>
-
-          <h1>
-            Master Challan Registry
-          </h1>
-
+          <h1>Master Challan Registry</h1>
           <p className="subtitle">
-            Immutable ledger of all generated
-            transport manifests.
+            Immutable ledger of all generated transport manifests.
           </p>
-
         </div>
-
-        <AddButton
-          onClick={openAddExpense}
-        >
+        <AddButton onClick={openAddExpense}>
           <Plus size={17} />
           Add Expense
         </AddButton>
-
       </PageHeader>
 
       {/* =========================
           SEARCH
       ========================= */}
-
       <Toolbar>
-
         <div className="search-wrapper">
-
-          <Search
-            size={18}
-            className="search-icon"
-          />
-
+          <Search size={18} className="search-icon" />
           <input
             type="text"
             placeholder="Search by ID, Driver, or Plate..."
             value={searchTerm}
-            onChange={(e) =>
-              setSearchTerm(
-                e.target.value
-              )
-            }
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
-
         </div>
-
       </Toolbar>
 
       {/* =========================
           TABLE
       ========================= */}
-
       <TableCard>
-
         <TableWrapper>
-
           <Table>
-
             <thead>
-
               <tr>
-
-                <th>
-                  Creation Date
-                </th>
-
-                <th>
-                  Challan ID
-                </th>
-
-                <th>
-                  Driver Profile
-                </th>
-
-                <th>
-                  Vehicle Asset
-                </th>
-
-                <th>
-                  Category
-                </th>
-
-                <th>
-                  Amount (₹)
-                </th>
-
-                <th>
-                  Expense Date
-                </th>
-
-                <th>
-                  Payment Method
-                </th>
-
-                <th>
-                  Vendor
-                </th>
-
-                <th>
-                  Receipt #
-                </th>
-
-                <th>
-                  Status
-                </th>
-
-                <th>
-                  Action
-                </th>
-
+                <th>Creation Date</th>
+                <th>Challan ID</th>
+                <th>Driver Profile</th>
+                <th>Vehicle Asset</th>
+                <th>Category</th>
+                <th>Amount (₹)</th>
+                <th>Expense Date</th>
+                <th>Payment Method</th>
+                <th>Vendor</th>
+                <th>Receipt #</th>
+                <th>Status</th>
+                <th>Action</th>
               </tr>
-
             </thead>
-
             <tbody>
-
-              {loading ||
-              loadingExpenses ? (
-
+              {loading || loadingExpenses ? (
                 <tr>
-
-                  <td
-                    colSpan="12"
-                    style={{
-                      textAlign:
-                        "center",
-                      padding:
-                        "40px",
-                    }}
-                  >
+                  <td colSpan="12" style={{ textAlign: "center", padding: "40px" }}>
                     Loading records...
                   </td>
-
                 </tr>
-
-              ) : filteredHistory.length ===
-                0 ? (
-
+              ) : filteredHistory.length === 0 ? (
                 <tr>
-
-                  <td
-                    colSpan="12"
-                    style={{
-                      textAlign:
-                        "center",
-                      padding:
-                        "60px",
-                      color:
-                        "#64748B",
-                    }}
-                  >
-
-                    <History
-                      size={48}
-                      style={{
-                        margin:
-                          "0 auto 16px auto",
-                        opacity: 0.5,
-                      }}
-                    />
-
-                    <p>
-                      No historical
-                      records found.
-                    </p>
-
+                  <td colSpan="12" style={{ textAlign: "center", padding: "60px", color: "#64748B" }}>
+                    <History size={48} style={{ margin: "0 auto 16px auto", opacity: 0.5 }} />
+                    <p>No historical records found.</p>
                   </td>
-
                 </tr>
-
               ) : (
-
-                filteredHistory.map(
-                  (row) => {
-
-                    const rowExpenses =
-                      getChallanExpenses(
-                        row
-                      );
-
-                    // =====================
-                    // EXPENSE ROWS
-                    // =====================
-
-                    if (
-                      rowExpenses.length >
-                      0
-                    ) {
-
-                      return rowExpenses.map(
-                        (
-                          expense,
-                          idx
-                        ) => {
-
-                          const expenseId = expense.expense_id || expense.id;
-
-                          return (
-                            <tr
-                              key={`${row.id || row.challan_no}-${expenseId || idx}`}
-                              className="clickable-row"
-                              onClick={() =>
-                                handlePreview(
-                                  row
-                                )
-                              }
-                            >
-
-                              <td>
-
-                                <div className="flex-center text-gray">
-
-                                  <Calendar
-                                    size={14}
-                                    className="mr-2"
-                                  />
-
-                                  {formatDate(
-                                    row.created_at
-                                  )}
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <div className="font-mono font-medium">
-
-                                  {
-                                    row.challan_no
-                                  }
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <div className="font-medium">
-
-                                  {
-                                    row.driver_name ||
-                                    "Unassigned"
-                                  }
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <div className="flex-center">
-
-                                  <Truck
-                                    size={14}
-                                    className="mr-2 text-gray"
-                                  />
-
-                                  <span className="font-mono">
-
-                                    {
-                                      row.license_plate ||
-                                      "N/A"
-                                    }
-
-                                  </span>
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <CategoryBadge>
-
-                                  {
-                                    getCategoryIcon(
-                                      expense.category
-                                    )
-                                  }
-
-                                  {
-                                    getCategoryLabel(
-                                      expense.category
-                                    )
-                                  }
-
-                                </CategoryBadge>
-
-                              </td>
-
-                              <td>
-
-                                <div className="font-mono font-semibold text-green-600">
-
-                                  {
-                                    formatInr(
-                                      expense.amount
-                                    )
-                                  }
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <div className="flex-center text-gray">
-
-                                  <Calendar
-                                    size={14}
-                                    className="mr-2"
-                                  />
-
-                                  {
-                                    formatDateShort(
-                                      expense.date
-                                    )
-                                  }
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <PaymentBadge>
-
-                                  {
-                                    getPaymentMethodLabel(
-                                      expense.paymentMethod
-                                    )
-                                  }
-
-                                </PaymentBadge>
-
-                              </td>
-
-                              <td>
-
-                                <div className="text-sm">
-
-                                  {
-                                    expense.vendor ||
-                                    "N/A"
-                                  }
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <div className="font-mono text-xs">
-
-                                  {
-                                    expense.receiptNumber ||
-                                    "N/A"
-                                  }
-
-                                </div>
-
-                              </td>
-
-                              <td>
-
-                                <StatusBadge
-                                  $status={
-                                    row.status
-                                  }
-                                >
-
-                                  {
-                                    row.status ||
-                                    "Draft"
-                                  }
-
-                                </StatusBadge>
-
-                              </td>
-
-                              <td
-                                onClick={(e) =>
-                                  e.stopPropagation()
-                                }
-                              >
-
-                                <ActionButtons>
-
-                                  <ActionButton
-                                    title="View Details"
-                                    onClick={() =>
-                                      handlePreview(
-                                        row
-                                      )
-                                    }
-                                  >
-                                    <Eye
-                                      size={16}
-                                    />
-                                  </ActionButton>
-
-                                  <ActionButton
-                                    title="Edit Expense"
-                                    onClick={() =>
-                                      openEditExpense(
-                                        expense
-                                      )
-                                    }
-                                  >
-                                    <Edit
-                                      size={16}
-                                    />
-                                  </ActionButton>
-
-                                  <ActionButton
-                                    title="Delete Expense"
-                                    $danger
-                                    disabled={
-                                      deletingExpenseId ===
-                                      expenseId
-                                    }
-                                    onClick={() =>
-                                      handleDeleteExpense(
-                                        expense
-                                      )
-                                    }
-                                  >
-                                    <Trash2
-                                      size={16}
-                                    />
-                                  </ActionButton>
-
-                                </ActionButtons>
-
-                              </td>
-
-                            </tr>
-                          );
-                        }
-                      );
-                    }
-
-                    // =====================
-                    // CHALLAN WITHOUT EXPENSE
-                    // =====================
-
-                    return (
-
-                      <tr
-                        key={
-                          row.id ||
-                          row.challan_no
-                        }
-                        onClick={() =>
-                          handlePreview(
-                            row
-                          )
-                        }
-                        className="clickable-row"
-                      >
-
-                        <td>
-
-                          <div className="flex-center text-gray">
-
-                            <Calendar
-                              size={14}
-                              className="mr-2"
-                            />
-
-                            {formatDate(
-                              row.created_at
-                            )}
-
-                          </div>
-
-                        </td>
-
-                        <td>
-
-                          <div className="font-mono font-medium">
-
-                            {
-                              row.challan_no
-                            }
-
-                          </div>
-
-                        </td>
-
-                        <td>
-
-                          <div className="font-medium">
-
-                            {
-                              row.driver_name ||
-                              "Unassigned"
-                            }
-
-                          </div>
-
-                        </td>
-
-                        <td>
-
-                          <div className="flex-center">
-
-                            <Truck
-                              size={14}
-                              className="mr-2 text-gray"
-                            />
-
-                            <span className="font-mono">
-
-                              {
-                                row.license_plate ||
-                                "N/A"
-                              }
-
-                            </span>
-
-                          </div>
-
-                        </td>
-
-                        <td>
-                          <span className="empty-value">
-                            —
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className="empty-value">
-                            —
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className="empty-value">
-                            —
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className="empty-value">
-                            —
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className="empty-value">
-                            —
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className="empty-value">
-                            —
-                          </span>
-                        </td>
-
-                        <td>
-
-                          <StatusBadge
-                            $status={
-                              row.status
-                            }
-                          >
-
-                            {
-                              row.status ||
-                              "Draft"
-                            }
-
-                          </StatusBadge>
-
-                        </td>
-
-                        <td
-                          onClick={(e) =>
-                            e.stopPropagation()
-                          }
+                filteredHistory.map((row) => {
+                  const rowExpenses = getChallanExpenses(row);
+
+                  // =====================
+                  // EXPENSE ROWS
+                  // =====================
+                  if (rowExpenses.length > 0) {
+                    return rowExpenses.map((expense, idx) => {
+                      const expenseId = expense.expense_id || expense.id;
+                      return (
+                        <tr
+                          key={`${row.id || row.challan_no}-${expenseId || idx}`}
+                          className="clickable-row"
+                          onClick={() => handlePreview(row)}
                         >
-
-                          <ActionButtons>
-
-                            <ActionButton
-                              title="View Details"
-                              onClick={() =>
-                                handlePreview(
-                                  row
-                                )
-                              }
-                            >
-
-                              <Eye
-                                size={16}
-                              />
-
-                            </ActionButton>
-
-                          </ActionButtons>
-
-                        </td>
-
-                      </tr>
-
-                    );
+                          <td>
+                            <div className="flex-center text-gray">
+                              <Calendar size={14} className="mr-2" />
+                              {formatDate(row.created_at)}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="font-mono font-medium">
+                              {row.challan_no}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="font-medium">
+                              {row.driver_name || "Unassigned"}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="flex-center">
+                              <Truck size={14} className="mr-2 text-gray" />
+                              <span className="font-mono">
+                                {row.license_plate || "N/A"}
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <CategoryBadge>
+                              {getCategoryIcon(expense.category)}
+                              {getCategoryLabel(expense.category)}
+                            </CategoryBadge>
+                          </td>
+                          <td>
+                            <div className="font-mono font-semibold text-green-600">
+                              {formatInr(expense.amount)}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="flex-center text-gray">
+                              <Calendar size={14} className="mr-2" />
+                              {formatDateShort(expense.date)}
+                            </div>
+                          </td>
+                          <td>
+                            <PaymentBadge>
+                              {getPaymentMethodLabel(expense.paymentMethod)}
+                            </PaymentBadge>
+                          </td>
+                          <td>
+                            <div className="text-sm">
+                              {expense.vendor || "N/A"}
+                            </div>
+                          </td>
+                          <td>
+                            <div className="font-mono text-xs">
+                              {expense.receiptNumber || "N/A"}
+                            </div>
+                          </td>
+                          <td>
+                            <StatusBadge $status={row.status}>
+                              {row.status || "Draft"}
+                            </StatusBadge>
+                          </td>
+                          <td onClick={(e) => e.stopPropagation()}>
+                            <ActionButtons>
+                              <ActionButton
+                                title="View Details"
+                                onClick={() => handlePreview(row)}
+                              >
+                                <Eye size={16} />
+                              </ActionButton>
+                              <ActionButton
+                                title="Edit Expense"
+                                onClick={() => openEditExpense(expense)}
+                              >
+                                <Edit size={16} />
+                              </ActionButton>
+                              <ActionButton
+                                title="Delete Expense"
+                                $danger
+                                disabled={deletingExpenseId === expenseId}
+                                onClick={() => handleDeleteExpense(expense)}
+                              >
+                                <Trash2 size={16} />
+                              </ActionButton>
+                            </ActionButtons>
+                          </td>
+                        </tr>
+                      );
+                    });
                   }
-                )
 
+                  // =====================
+                  // CHALLAN WITHOUT EXPENSE
+                  // =====================
+                  return (
+                    <tr
+                      key={row.id || row.challan_no}
+                      onClick={() => handlePreview(row)}
+                      className="clickable-row"
+                    >
+                      <td>
+                        <div className="flex-center text-gray">
+                          <Calendar size={14} className="mr-2" />
+                          {formatDate(row.created_at)}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="font-mono font-medium">
+                          {row.challan_no}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="font-medium">
+                          {row.driver_name || "Unassigned"}
+                        </div>
+                      </td>
+                      <td>
+                        <div className="flex-center">
+                          <Truck size={14} className="mr-2 text-gray" />
+                          <span className="font-mono">
+                            {row.license_plate || "N/A"}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="empty-value">—</span>
+                      </td>
+                      <td>
+                        <span className="empty-value">—</span>
+                      </td>
+                      <td>
+                        <span className="empty-value">—</span>
+                      </td>
+                      <td>
+                        <span className="empty-value">—</span>
+                      </td>
+                      <td>
+                        <span className="empty-value">—</span>
+                      </td>
+                      <td>
+                        <span className="empty-value">—</span>
+                      </td>
+                      <td>
+                        <StatusBadge $status={row.status}>
+                          {row.status || "Draft"}
+                        </StatusBadge>
+                      </td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <ActionButtons>
+                          <ActionButton
+                            title="View Details"
+                            onClick={() => handlePreview(row)}
+                          >
+                            <Eye size={16} />
+                          </ActionButton>
+                        </ActionButtons>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
-
             </tbody>
-
           </Table>
-
         </TableWrapper>
-
       </TableCard>
 
       {/* =====================================================
-          EXPENSE MODAL
+          EXPENSE MODAL - FIXED
       ===================================================== */}
-
       {showExpenseForm && (
-
-        <ModalOverlay
-          onClick={closeExpenseForm}
-        >
-
+        <ModalOverlay onClick={closeExpenseForm}>
           <Modal
-            onClick={(e) =>
-              e.stopPropagation()
-            }
-            style={{
-              maxWidth: "700px",
-            }}
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "700px" }}
           >
-
             <ModalHeader>
-
               <div className="flex-center">
-
-                <DollarSign
-                  size={20}
-                  className="mr-2 text-indigo-600"
-                />
-
-                <h3>
-
-                  {editingExpense
-                    ? "Edit Expense"
-                    : "Add New Expense"}
-
-                </h3>
-
+                <DollarSign size={20} className="mr-2 text-indigo-600" />
+                <h3>{editingExpense ? "Edit Expense" : "Add New Expense"}</h3>
               </div>
-
-              <IconButton
-                onClick={
-                  closeExpenseForm
-                }
-              >
-
+              <IconButton onClick={closeExpenseForm}>
                 <X size={20} />
-
               </IconButton>
-
             </ModalHeader>
 
-            <ModalBody
-              style={{
-                padding:
-                  "24px 32px",
-              }}
-            >
-
+            <ModalBody style={{ padding: "24px 32px" }}>
               {expenseError && (
-
-                <AlertBox
-                  $type="error"
-                >
-
-                  <AlertCircle
-                    size={18}
-                  />
-
-                  <span>
-                    {expenseError}
-                  </span>
-
+                <AlertBox $type="error">
+                  <AlertCircle size={18} />
+                  <span>{expenseError}</span>
                 </AlertBox>
-
               )}
 
               {expenseSuccess && (
-
-                <AlertBox
-                  $type="success"
-                >
-
+                <AlertBox $type="success">
                   <span>✓</span>
-
-                  <span>
-                    {expenseSuccess}
-                  </span>
-
+                  <span>{expenseSuccess}</span>
                 </AlertBox>
-
               )}
 
-              <ExpenseForm
-                onSubmit={editingExpense ? handleUpdateExpense : handleAddExpense}
-              >
-
+              <ExpenseForm onSubmit={editingExpense ? handleUpdateExpense : handleAddExpense}>
                 <FormGrid>
-
-                  {/* CHALLAN */}
-
+                  {/* CHALLAN - FIXED: Use numeric IDs */}
                   <FormGroup>
-
-                    <Label required>
-                      Challan ID
-                    </Label>
-
+                    <Label required>Challan ID</Label>
                     <Select
                       value={String(expenseData.challanId)}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          challanId:
-                            e.target.value,
+                          challanId: e.target.value,
                         })
                       }
                       required
                     >
-
-                      <option value="">
-                        Select Challan
-                      </option>
-
-                      {history.map(
-                        (challan) => {
-
-                          const challanId =
-                            challan.challan_id ||
-                            challan.id;
-
-                          return (
-
-                            <option
-                              key={
-                                challanId ||
-                                challan.challan_no
-                              }
-                              value={String(challanId || challan.challan_no)}
-                            >
-
-                              {
-                                challan.challan_no
-                              }
-
-                              {" - "}
-
-                              {
-                                challan.driver_name ||
-                                "Unassigned"
-                              }
-
-                            </option>
-
-                          );
-
-                        }
-                      )}
-
+                      <option value="">Select Challan</option>
+                      {history.map((challan) => {
+                        // Use the numeric ID from the challan
+                        const challanId = challan.challan_id || challan.id;
+                        return (
+                          <option
+                            key={challanId || challan.challan_no}
+                            value={String(challanId || challan.challan_no)}
+                          >
+                            {challan.challan_no}
+                            {" - "}
+                            {challan.driver_name || "Unassigned"}
+                          </option>
+                        );
+                      })}
                     </Select>
-
                   </FormGroup>
 
                   {/* CATEGORY */}
-
                   <FormGroup>
-
-                    <Label required>
-                      Category
-                    </Label>
-
+                    <Label required>Category</Label>
                     <Select
-                      value={
-                        expenseData.category
-                      }
+                      value={expenseData.category}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          category:
-                            e.target.value,
+                          category: e.target.value,
                         })
                       }
                       required
                     >
-
-                      <option value="">
-                        Select Category
-                      </option>
-
-                      <option value="fuel">
-                        ⛽ Fuel
-                      </option>
-
-                      <option value="maintenance">
-                        🔧 Maintenance
-                      </option>
-
-                      <option value="repair">
-                        🔨 Repair
-                      </option>
-
-                      <option value="toll">
-                        🛣️ Toll
-                      </option>
-
-                      <option value="driver_allowance">
-                        👨‍✈️ Driver Allowance
-                      </option>
-
-                      <option value="loading_unloading">
-                        📦 Loading/Unloading
-                      </option>
-
-                      <option value="parking">
-                        🅿️ Parking
-                      </option>
-
-                      <option value="other">
-                        📋 Other
-                      </option>
-
+                      <option value="">Select Category</option>
+                      <option value="fuel">⛽ Fuel</option>
+                      <option value="maintenance">🔧 Maintenance</option>
+                      <option value="repair">🔨 Repair</option>
+                      <option value="toll">🛣️ Toll</option>
+                      <option value="driver_allowance">👨‍✈️ Driver Allowance</option>
+                      <option value="loading_unloading">📦 Loading/Unloading</option>
+                      <option value="parking">🅿️ Parking</option>
+                      <option value="other">📋 Other</option>
                     </Select>
-
                   </FormGroup>
 
                   {/* AMOUNT */}
-
                   <FormGroup>
-
-                    <Label required>
-                      Amount (₹)
-                    </Label>
-
+                    <Label required>Amount (₹)</Label>
                     <Input
                       type="number"
                       step="0.01"
                       min="0"
                       placeholder="0.00"
-                      value={
-                        expenseData.amount
-                      }
+                      value={expenseData.amount}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          amount:
-                            e.target.value,
+                          amount: e.target.value,
                         })
                       }
                       required
                     />
-
                   </FormGroup>
 
                   {/* DATE */}
-
                   <FormGroup>
-
-                    <Label>
-                      Expense Date
-                    </Label>
-
+                    <Label>Expense Date</Label>
                     <Input
                       type="date"
-                      value={
-                        expenseData.date
-                      }
+                      value={expenseData.date}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          date:
-                            e.target.value,
+                          date: e.target.value,
                         })
                       }
                     />
-
                   </FormGroup>
 
                   {/* PAYMENT */}
-
                   <FormGroup>
-
-                    <Label>
-                      Payment Method
-                    </Label>
-
+                    <Label>Payment Method</Label>
                     <Select
-                      value={
-                        expenseData.paymentMethod
-                      }
+                      value={expenseData.paymentMethod}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          paymentMethod:
-                            e.target.value,
+                          paymentMethod: e.target.value,
                         })
                       }
                     >
-
-                      <option value="cash">
-                        Cash
-                      </option>
-
-                      <option value="bank_transfer">
-                        Bank Transfer
-                      </option>
-
-                      <option value="cheque">
-                        Cheque
-                      </option>
-
-                      <option value="upi">
-                        UPI
-                      </option>
-
-                      <option value="credit_card">
-                        Credit Card
-                      </option>
-
+                      <option value="cash">Cash</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="cheque">Cheque</option>
+                      <option value="upi">UPI</option>
+                      <option value="credit_card">Credit Card</option>
                     </Select>
-
                   </FormGroup>
 
                   {/* VENDOR */}
-
                   <FormGroup>
-
-                    <Label>
-                      Vendor
-                    </Label>
-
+                    <Label>Vendor</Label>
                     <Input
                       type="text"
                       placeholder="Vendor name"
-                      value={
-                        expenseData.vendor
-                      }
+                      value={expenseData.vendor}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          vendor:
-                            e.target.value,
+                          vendor: e.target.value,
                         })
                       }
                     />
-
                   </FormGroup>
 
                   {/* DESCRIPTION */}
-
-                  <FormGroup
-                    style={{
-                      gridColumn:
-                        "span 2",
-                    }}
-                  >
-
-                    <Label>
-                      Description
-                    </Label>
-
+                  <FormGroup style={{ gridColumn: "span 2" }}>
+                    <Label>Description</Label>
                     <TextArea
                       placeholder="Enter expense description..."
-                      value={
-                        expenseData.description
-                      }
+                      value={expenseData.description}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          description:
-                            e.target.value,
+                          description: e.target.value,
                         })
                       }
                       rows="3"
                     />
-
                   </FormGroup>
 
                   {/* RECEIPT */}
-
                   <FormGroup>
-
-                    <Label>
-                      Receipt Number
-                    </Label>
-
+                    <Label>Receipt Number</Label>
                     <Input
                       type="text"
                       placeholder="Receipt/Invoice #"
-                      value={
-                        expenseData.receiptNumber
-                      }
+                      value={expenseData.receiptNumber}
                       onChange={(e) =>
                         setExpenseData({
                           ...expenseData,
-                          receiptNumber:
-                            e.target.value,
+                          receiptNumber: e.target.value,
                         })
                       }
                     />
-
                   </FormGroup>
-
                 </FormGrid>
 
                 <FormActions>
-
-                  <Button
-                    $variant="ghost"
-                    type="button"
-                    onClick={
-                      closeExpenseForm
-                    }
-                  >
+                  <Button $variant="ghost" type="button" onClick={closeExpenseForm}>
                     Cancel
                   </Button>
-
                   <Button
                     $variant="primary"
                     type="submit"
-                    disabled={
-                      expenseSubmitting
-                    }
+                    disabled={expenseSubmitting}
                   >
-
                     {expenseSubmitting
                       ? editingExpense
                         ? "Updating..."
@@ -2308,398 +1405,149 @@ export default function ChallanHistory() {
                       : editingExpense
                       ? "Update Expense"
                       : "Add Expense"}
-
                   </Button>
-
                 </FormActions>
-
               </ExpenseForm>
-
             </ModalBody>
-
           </Modal>
-
         </ModalOverlay>
-
       )}
 
       {/* =====================================================
           CHALLAN PREVIEW MODAL
       ===================================================== */}
-
       {selectedChallan && (
-
-        <ModalOverlay
-          onClick={() =>
-            setSelectedChallan(null)
-          }
-        >
-
-          <Modal
-            onClick={(e) =>
-              e.stopPropagation()
-            }
-          >
-
+        <ModalOverlay onClick={() => setSelectedChallan(null)}>
+          <Modal onClick={(e) => e.stopPropagation()}>
             <ModalHeader>
-
               <div className="flex-center">
-
-                <FileText
-                  size={20}
-                  className="mr-2 text-indigo-600"
-                />
-
-                <h3>
-                  Manifest Preview
-                </h3>
-
+                <FileText size={20} className="mr-2 text-indigo-600" />
+                <h3>Manifest Preview</h3>
               </div>
-
-              <IconButton
-                onClick={() =>
-                  setSelectedChallan(
-                    null
-                  )
-                }
-              >
-
+              <IconButton onClick={() => setSelectedChallan(null)}>
                 <X size={20} />
-
               </IconButton>
-
             </ModalHeader>
 
             <ModalBody>
-
               <div className="preview-header">
-
-                <span className="label">
-                  Challan Number
-                </span>
-
-                <h2 className="font-mono">
-                  {
-                    selectedChallan.challan_no
-                  }
-                </h2>
-
-                <StatusBadge
-                  $status={
-                    selectedChallan.status
-                  }
-                  style={{
-                    marginTop:
-                      "12px",
-                  }}
-                >
-
-                  {
-                    selectedChallan.status ||
-                    "Draft"
-                  }
-
+                <span className="label">Challan Number</span>
+                <h2 className="font-mono">{selectedChallan.challan_no}</h2>
+                <StatusBadge $status={selectedChallan.status} style={{ marginTop: "12px" }}>
+                  {selectedChallan.status || "Draft"}
                 </StatusBadge>
-
               </div>
 
               <InfoGrid>
-
                 <InfoBlock>
-
-                  <label>
-                    Assigned Driver
-                  </label>
-
+                  <label>Assigned Driver</label>
                   <p className="flex-center">
-
-                    <UserIcon
-                      size={14}
-                      className="mr-2 text-gray"
-                    />
-
-                    {
-                      selectedChallan.driver_name ||
-                      "N/A"
-                    }
-
+                    <UserIcon size={14} className="mr-2 text-gray" />
+                    {selectedChallan.driver_name || "N/A"}
                   </p>
-
                 </InfoBlock>
 
                 <InfoBlock>
-
-                  <label>
-                    Dispatch Vehicle
-                  </label>
-
+                  <label>Dispatch Vehicle</label>
                   <p className="flex-center font-mono">
-
-                    <Truck
-                      size={14}
-                      className="mr-2 text-gray"
-                    />
-
-                    {
-                      selectedChallan.license_plate ||
-                      "N/A"
-                    }
-
+                    <Truck size={14} className="mr-2 text-gray" />
+                    {selectedChallan.license_plate || "N/A"}
                   </p>
-
                 </InfoBlock>
 
                 <InfoBlock>
-
-                  <label>
-                    Timestamp
-                  </label>
-
+                  <label>Timestamp</label>
                   <p className="flex-center">
-
-                    <Calendar
-                      size={14}
-                      className="mr-2 text-gray"
-                    />
-
-                    {formatDate(
-                      selectedChallan.created_at
-                    )}
-
+                    <Calendar size={14} className="mr-2 text-gray" />
+                    {formatDate(selectedChallan.created_at)}
                   </p>
-
                 </InfoBlock>
 
                 <InfoBlock>
-
-                  <label>
-                    Blockchain Sync
-                  </label>
-
+                  <label>Blockchain Sync</label>
                   <p
                     className="font-mono text-indigo-600"
-                    style={{
-                      fontSize:
-                        "11px",
-                      wordBreak:
-                        "break-all",
-                    }}
+                    style={{ fontSize: "11px", wordBreak: "break-all" }}
                   >
-
                     {challanHash}
-
                   </p>
-
                 </InfoBlock>
-
               </InfoGrid>
 
-              <div
-                style={{
-                  marginTop:
-                    "32px",
-                }}
-              >
-
+              <div style={{ marginTop: "32px" }}>
                 <h4
                   style={{
-                    fontSize:
-                      "14px",
+                    fontSize: "14px",
                     fontWeight: 600,
-                    color:
-                      "#1e293b",
-                    marginBottom:
-                      "12px",
-                    display:
-                      "flex",
-                    alignItems:
-                      "center",
+                    color: "#1e293b",
+                    marginBottom: "12px",
+                    display: "flex",
+                    alignItems: "center",
                   }}
                 >
-
-                  <Package
-                    size={16}
-                    className="mr-2 text-gray"
-                  />
-
-                  Attached
-                  Consignments
-                  (LRs)
-
+                  <Package size={16} className="mr-2 text-gray" />
+                  Attached Consignments (LRs)
                 </h4>
 
                 <ShipmentListWrapper>
-
                   {loadingShipments ? (
-
-                    <div
-                      style={{
-                        padding:
-                          "20px",
-                        textAlign:
-                          "center",
-                        color:
-                          "#64748b",
-                      }}
-                    >
-                      Locating attached
-                      manifests...
+                    <div style={{ padding: "20px", textAlign: "center", color: "#64748b" }}>
+                      Locating attached manifests...
                     </div>
-
-                  ) : challanShipments.length ===
-                    0 ? (
-
-                    <div
-                      style={{
-                        padding:
-                          "20px",
-                        textAlign:
-                          "center",
-                        color:
-                          "#64748b",
-                        background:
-                          "#f8fafc",
-                      }}
-                    >
-                      No LRs are currently
-                      attached to this
-                      dispatch ticket.
+                  ) : challanShipments.length === 0 ? (
+                    <div style={{ padding: "20px", textAlign: "center", color: "#64748b", background: "#f8fafc" }}>
+                      No LRs are currently attached to this dispatch ticket.
                     </div>
-
                   ) : (
-
                     <ShipmentTable>
-
                       <thead>
-
                         <tr>
-
-                          <th>
-                            LR Number
-                          </th>
-
-                          <th>
-                            Destination
-                          </th>
-
-                          <th>
-                            Weight
-                          </th>
-
-                          <th>
-                            Freight
-                          </th>
-
+                          <th>LR Number</th>
+                          <th>Destination</th>
+                          <th>Weight</th>
+                          <th>Freight</th>
                         </tr>
-
                       </thead>
-
                       <tbody>
-
-                        {challanShipments.map(
-                          (lr) => (
-
-                            <tr
-                              key={lr.id}
-                            >
-
-                              <td className="font-mono font-medium text-indigo-600">
-
-                                {
-                                  lr.lr_number
-                                }
-
-                              </td>
-
-                              <td>
-
-                                {
-                                  lr.delivery_location ||
-                                  lr.destination ||
-                                  "N/A"
-                                }
-
-                              </td>
-
-                              <td>
-
-                                {
-                                  lr.weight
-                                }{" "}
-                                {
-                                  lr.weight_type
-                                }
-
-                              </td>
-
-                              <td className="font-medium">
-
-                                {
-                                  formatInr(
-                                    lr.freight_charge
-                                  )
-                                }
-
-                              </td>
-
-                            </tr>
-
-                          )
-                        )}
-
+                        {challanShipments.map((lr) => (
+                          <tr key={lr.id}>
+                            <td className="font-mono font-medium text-indigo-600">
+                              {lr.lr_number}
+                            </td>
+                            <td>
+                              {lr.delivery_location || lr.destination || "N/A"}
+                            </td>
+                            <td>
+                              {lr.weight} {lr.weight_type}
+                            </td>
+                            <td className="font-medium">
+                              {formatInr(lr.freight_charge)}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
-
                     </ShipmentTable>
-
                   )}
-
                 </ShipmentListWrapper>
-
               </div>
-
             </ModalBody>
 
             <ModalFooter>
-
-              <Button
-                $variant="ghost"
-                onClick={() =>
-                  setSelectedChallan(
-                    null
-                  )
-                }
-              >
+              <Button $variant="ghost" onClick={() => setSelectedChallan(null)}>
                 Close Viewer
               </Button>
-
               <Button
                 $variant="primary"
-                onClick={
-                  printOfficialChallan
-                }
-                disabled={
-                  challanShipments.length ===
-                  0
-                }
+                onClick={printOfficialChallan}
+                disabled={challanShipments.length === 0}
               >
-
-                <Printer
-                  size={16}
-                  className="mr-2"
-                />
-
+                <Printer size={16} className="mr-2" />
                 Reprint Master PDF
-
               </Button>
-
             </ModalFooter>
-
           </Modal>
-
         </ModalOverlay>
-
       )}
-
     </Container>
   );
 }
@@ -2789,9 +1637,7 @@ const Toolbar = styled.div`
 
       &:focus {
         border-color: #6366f1;
-        box-shadow:
-          0 0 0 3px
-          rgba(99, 102, 241, 0.1);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
       }
     }
   }
@@ -2801,9 +1647,7 @@ const TableCard = styled.div`
   background: white;
   border: 1px solid #e2e8f0;
   border-radius: 16px;
-  box-shadow:
-    0 4px 6px -1px
-    rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02);
   overflow: hidden;
 `;
 
@@ -2827,19 +1671,16 @@ const Table = styled.table`
       text-transform: uppercase;
       letter-spacing: 0.05em;
       color: #64748b;
-      border-bottom:
-        2px solid #e2e8f0;
+      border-bottom: 2px solid #e2e8f0;
       white-space: nowrap;
     }
   }
 
   tbody {
     tr.clickable-row {
-      border-bottom:
-        1px solid #f1f5f9;
+      border-bottom: 1px solid #f1f5f9;
       cursor: pointer;
-      transition:
-        background 0.15s ease;
+      transition: background 0.15s ease;
 
       &:hover {
         background: #f8fafc;
@@ -2873,9 +1714,7 @@ const Table = styled.table`
       }
 
       .font-mono {
-        font-family:
-          ui-monospace,
-          monospace;
+        font-family: ui-monospace, monospace;
       }
 
       .font-medium {
@@ -2932,15 +1771,8 @@ const StatusBadge = styled.span`
   font-size: 12px;
   font-weight: 600;
 
-  background: ${(p) =>
-    p.$status === "settled"
-      ? "#ECFDF5"
-      : "#EEF2FF"};
-
-  color: ${(p) =>
-    p.$status === "settled"
-      ? "#059669"
-      : "#4338CA"};
+  background: ${(p) => (p.$status === "settled" ? "#ECFDF5" : "#EEF2FF")};
+  color: ${(p) => (p.$status === "settled" ? "#059669" : "#4338CA")};
 `;
 
 const ActionButtons = styled.div`
@@ -2953,29 +1785,16 @@ const ActionButton = styled.button`
   display: inline-flex;
   align-items: center;
   justify-content: center;
-
   padding: 5px;
-
   border: none;
-
   background: transparent;
-
   border-radius: 5px;
-
   color: #94a3b8;
-
   cursor: pointer;
 
   &:hover {
-    color: ${(props) =>
-      props.$danger
-        ? "#ef4444"
-        : "#4f46e5"};
-
-    background: ${(props) =>
-      props.$danger
-        ? "#fee2e2"
-        : "#eef2ff"};
+    color: ${(props) => (props.$danger ? "#ef4444" : "#4f46e5")};
+    background: ${(props) => (props.$danger ? "#fee2e2" : "#eef2ff")};
   }
 
   &:disabled {
@@ -2987,61 +1806,35 @@ const ActionButton = styled.button`
 const ModalOverlay = styled.div`
   position: fixed;
   inset: 0;
-
-  background:
-    rgba(15, 23, 42, 0.4);
-
+  background: rgba(15, 23, 42, 0.4);
   backdrop-filter: blur(4px);
-
   display: flex;
-
   justify-content: center;
   align-items: center;
-
   z-index: 2000;
-
   padding: 20px;
 `;
 
 const Modal = styled.div`
   background: white;
-
   border-radius: 20px;
-
   width: 100%;
-
   max-width: 600px;
-
   max-height: 90vh;
-
   display: flex;
-
   flex-direction: column;
-
-  box-shadow:
-    0 25px 50px -12px
-    rgba(0, 0, 0, 0.25);
-
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   overflow: hidden;
-
-  border:
-    1px solid #e2e8f0;
+  border: 1px solid #e2e8f0;
 `;
 
 const ModalHeader = styled.div`
   display: flex;
-
   justify-content: space-between;
-
   align-items: center;
-
   padding: 24px 32px;
-
-  border-bottom:
-    1px solid #f1f5f9;
-
+  border-bottom: 1px solid #f1f5f9;
   background: #fafaf9;
-
   flex-shrink: 0;
 
   .flex-center {
@@ -3051,11 +1844,8 @@ const ModalHeader = styled.div`
 
   h3 {
     margin: 0;
-
     font-size: 18px;
-
     font-weight: 700;
-
     color: #0f172a;
   }
 
@@ -3070,18 +1860,11 @@ const ModalHeader = styled.div`
 
 const IconButton = styled.button`
   display: inline-flex;
-
   padding: 8px;
-
   border-radius: 8px;
-
-  border:
-    1px solid #e2e8f0;
-
+  border: 1px solid #e2e8f0;
   background: white;
-
   color: #64748b;
-
   cursor: pointer;
 
   &:hover {
@@ -3092,44 +1875,31 @@ const IconButton = styled.button`
 
 const ModalBody = styled.div`
   padding: 32px;
-
   overflow-y: auto;
-
   flex-grow: 1;
 
   .preview-header {
     text-align: center;
-
     margin-bottom: 32px;
-
     padding-bottom: 24px;
-
-    border-bottom:
-      1px dashed #e2e8f0;
+    border-bottom: 1px dashed #e2e8f0;
 
     .label {
       font-size: 12px;
-
       font-weight: 700;
-
       text-transform: uppercase;
-
       color: #64748b;
     }
 
     h2 {
       margin: 8px 0 0 0;
-
       font-size: 28px;
-
       color: #0f172a;
     }
   }
 
   .font-mono {
-    font-family:
-      ui-monospace,
-      monospace;
+    font-family: ui-monospace, monospace;
   }
 
   .text-indigo-600 {
@@ -3139,37 +1909,26 @@ const ModalBody = styled.div`
 
 const InfoGrid = styled.div`
   display: grid;
-
-  grid-template-columns:
-    1fr 1fr;
-
+  grid-template-columns: 1fr 1fr;
   gap: 24px;
 `;
 
 const InfoBlock = styled.div`
   display: flex;
-
   flex-direction: column;
-
   gap: 8px;
 
   label {
     font-size: 12px;
-
     font-weight: 600;
-
     color: #64748b;
-
     text-transform: uppercase;
   }
 
   p {
     margin: 0;
-
     font-size: 15px;
-
     font-weight: 500;
-
     color: #0f172a;
   }
 
@@ -3188,21 +1947,15 @@ const InfoBlock = styled.div`
 `;
 
 const ShipmentListWrapper = styled.div`
-  border:
-    1px solid #e2e8f0;
-
+  border: 1px solid #e2e8f0;
   border-radius: 10px;
-
   overflow: hidden;
 `;
 
 const ShipmentTable = styled.table`
   width: 100%;
-
   border-collapse: collapse;
-
   text-align: left;
-
   font-size: 13px;
 
   thead {
@@ -3210,24 +1963,17 @@ const ShipmentTable = styled.table`
 
     th {
       padding: 10px 14px;
-
       font-size: 11px;
-
       font-weight: 600;
-
       text-transform: uppercase;
-
       color: #64748b;
-
-      border-bottom:
-        1px solid #e2e8f0;
+      border-bottom: 1px solid #e2e8f0;
     }
   }
 
   tbody {
     tr {
-      border-bottom:
-        1px solid #f1f5f9;
+      border-bottom: 1px solid #f1f5f9;
 
       &:last-child {
         border-bottom: none;
@@ -3236,15 +1982,12 @@ const ShipmentTable = styled.table`
 
     td {
       padding: 12px 14px;
-
       color: #334155;
     }
   }
 
   .font-mono {
-    font-family:
-      ui-monospace,
-      monospace;
+    font-family: ui-monospace, monospace;
   }
 
   .font-medium {
@@ -3258,38 +2001,23 @@ const ShipmentTable = styled.table`
 
 const ModalFooter = styled.div`
   display: flex;
-
   justify-content: flex-end;
-
   gap: 12px;
-
   padding: 24px 32px;
-
   background: #f8fafc;
-
-  border-top:
-    1px solid #f1f5f9;
-
+  border-top: 1px solid #f1f5f9;
   flex-shrink: 0;
 `;
 
 const Button = styled.button`
   display: inline-flex;
-
   align-items: center;
-
   justify-content: center;
-
   padding: 10px 18px;
-
   font-size: 13px;
-
   font-weight: 600;
-
   border-radius: 8px;
-
   cursor: pointer;
-
   transition: all 0.2s ease;
 
   .mr-2 {
@@ -3334,34 +2062,25 @@ const Button = styled.button`
 
 const ExpenseForm = styled.form`
   display: flex;
-
   flex-direction: column;
-
   gap: 20px;
 `;
 
 const FormGrid = styled.div`
   display: grid;
-
-  grid-template-columns:
-    1fr 1fr;
-
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
 `;
 
 const FormGroup = styled.div`
   display: flex;
-
   flex-direction: column;
-
   gap: 6px;
 `;
 
 const Label = styled.label`
   font-size: 13px;
-
   font-weight: 600;
-
   color: #334155;
 
   ${(props) =>
@@ -3376,24 +2095,15 @@ const Label = styled.label`
 
 const Input = styled.input`
   padding: 10px 14px;
-
-  border:
-    1px solid #e2e8f0;
-
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-
   font-size: 14px;
-
   outline: none;
-
   background: white;
 
   &:focus {
     border-color: #6366f1;
-
-    box-shadow:
-      0 0 0 3px
-      rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 
   &::placeholder {
@@ -3403,53 +2113,32 @@ const Input = styled.input`
 
 const Select = styled.select`
   padding: 10px 14px;
-
-  border:
-    1px solid #e2e8f0;
-
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-
   font-size: 14px;
-
   outline: none;
-
   background: white;
-
   cursor: pointer;
 
   &:focus {
     border-color: #6366f1;
-
-    box-shadow:
-      0 0 0 3px
-      rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 `;
 
 const TextArea = styled.textarea`
   padding: 10px 14px;
-
-  border:
-    1px solid #e2e8f0;
-
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-
   font-size: 14px;
-
   outline: none;
-
   background: white;
-
   resize: vertical;
-
   font-family: inherit;
 
   &:focus {
     border-color: #6366f1;
-
-    box-shadow:
-      0 0 0 3px
-      rgba(99, 102, 241, 0.1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
   }
 
   &::placeholder {
@@ -3459,30 +2148,19 @@ const TextArea = styled.textarea`
 
 const FormActions = styled.div`
   display: flex;
-
   justify-content: flex-end;
-
   gap: 12px;
-
   padding-top: 8px;
-
-  border-top:
-    1px solid #e2e8f0;
+  border-top: 1px solid #e2e8f0;
 `;
 
 const AlertBox = styled.div`
   display: flex;
-
   align-items: center;
-
   gap: 10px;
-
   padding: 12px 16px;
-
   border-radius: 8px;
-
   margin-bottom: 16px;
-
   font-size: 14px;
 
   ${(props) =>
