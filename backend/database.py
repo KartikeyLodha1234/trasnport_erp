@@ -1,5 +1,3 @@
-# database.py - Complete file with correct indentation
-
 import pyodbc
 import sqlite3
 import os
@@ -11,55 +9,202 @@ from datetime import datetime
 
 DB_PATH = 'transport.db'
 
+
 class Database:
+
     def __init__(self):
         self.connection = None
         self.max_retries = 3
+
         self.connect()
+
+        # Ensure required columns/tables
         self.ensure_challan_columns()
-        self.ensure_vehicle_driver_column()  # Add this line
+        self.ensure_vehicle_driver_column()
+        self.ensure_routes_columns()
+        self.ensure_shipment_columns()
+        self.ensure_expenses_table()  # <-- NEW: Add this line
 
     def connect(self):
         """Establish database connection with retry logic"""
         for attempt in range(self.max_retries):
             try:
                 conn_str = Config.get_connection_string()
-                self.connection = pyodbc.connect(conn_str, timeout=30)
-                self.connection.autocommit = False
+
+                # ✅ Add these options to avoid connection issues
+                self.connection = pyodbc.connect(
+                    conn_str,
+                    timeout=30,
+                    autocommit=False,
+                    # ✅ Ensure connection is not pooled
+                    pool=False
+                )
+
                 print("✅ MSSQL Database connected successfully!")
 
                 cursor = self.connection.cursor()
+
                 cursor.execute("SELECT DB_NAME()")
                 db_name = cursor.fetchone()[0]
+
                 print(f"🔍 Database: {db_name}")
 
                 self.ensure_all_columns(cursor)
+
                 cursor.close()
-                
+
                 self.test_connection()
+
                 return True
-                
+
             except pyodbc.Error as e:
-                print(f"❌ Database connection attempt {attempt + 1} failed: {e}")
+                print(
+                    f"❌ Database connection attempt "
+                    f"{attempt + 1} failed: {e}"
+                )
+
                 self.connection = None
+
                 if attempt < self.max_retries - 1:
                     print("⏳ Retrying in 2 seconds...")
                     time.sleep(2)
                 else:
                     print("❌ All connection attempts failed!")
                     return False
+
             except Exception as e:
                 print(f"❌ Unexpected error: {e}")
                 self.connection = None
                 return False
-        
+
         return False
+
+    # ============================================================
+    # NEW: ENSURE EXPENSES TABLE
+    # ============================================================
+    def ensure_expenses_table(self):
+        """Ensure expenses table exists with all required columns"""
+        try:
+            cursor = self.get_cursor()
+            if not cursor:
+                print("❌ No cursor available for expenses table check")
+                return False
+
+            # Check if expenses table exists
+            cursor.execute("""
+                SELECT COUNT(*) 
+                FROM INFORMATION_SCHEMA.TABLES 
+                WHERE TABLE_NAME = 'expenses'
+            """)
+            
+            table_exists = cursor.fetchone()[0]
+            
+            if table_exists == 0:
+                print("📦 Creating expenses table...")
+                
+                # Create expenses table
+                cursor.execute("""
+                    CREATE TABLE expenses (
+                        expense_id INT IDENTITY(1,1) PRIMARY KEY,
+                        challan_id INT NOT NULL,
+                        category NVARCHAR(50) NOT NULL,
+                        amount DECIMAL(12,2) NOT NULL,
+                        expense_date DATE NOT NULL,
+                        payment_method NVARCHAR(50) DEFAULT 'cash',
+                        vendor NVARCHAR(255) NULL,
+                        description NVARCHAR(MAX) NULL,
+                        receipt_number NVARCHAR(100) NULL,
+                        created_at DATETIME DEFAULT GETDATE()
+                    )
+                """)
+                self.connection.commit()
+                print("✅ Expenses table created")
+                
+                # Add foreign key constraint - use id column
+                try:
+                    cursor.execute("""
+                        ALTER TABLE expenses
+                        ADD CONSTRAINT fk_expenses_challan
+                        FOREIGN KEY (challan_id) 
+                        REFERENCES challans(id)
+                        ON DELETE CASCADE
+                    """)
+                    self.connection.commit()
+                    print("✅ Foreign key constraint added (referencing challans.id)")
+                except Exception as e:
+                    print(f"⚠️ Could not add foreign key: {e}")
+                
+                # Add indexes
+                try:
+                    cursor.execute("""
+                        CREATE INDEX idx_expenses_challan_id 
+                        ON expenses(challan_id)
+                    """)
+                    cursor.execute("""
+                        CREATE INDEX idx_expenses_expense_date 
+                        ON expenses(expense_date)
+                    """)
+                    cursor.execute("""
+                        CREATE INDEX idx_expenses_category 
+                        ON expenses(category)
+                    """)
+                    self.connection.commit()
+                    print("✅ Indexes created on expenses table")
+                except Exception as e:
+                    print(f"⚠️ Could not create indexes: {e}")
+                    
+            else:
+                print("✅ Expenses table already exists")
+                self.ensure_expenses_columns(cursor)
+            
+            cursor.close()
+            return True
+            
+        except Exception as e:
+            print(f"❌ Error ensuring expenses table: {e}")
+            import traceback
+            traceback.print_exc()
+            if self.connection:
+                self.connection.rollback()
+            return False
+            
+        except Exception as e:
+            print(f"❌ Error ensuring expenses table: {e}")
+            import traceback
+            traceback.print_exc()
+            if self.connection:
+                self.connection.rollback()
+            return False
+
+    def ensure_expenses_columns(self, cursor):
+        """Ensure all required columns exist in expenses table"""
+        try:
+            columns_to_check = {
+                'payment_method': 'NVARCHAR(50) DEFAULT "cash"',
+                'vendor': 'NVARCHAR(255) NULL',
+                'description': 'NVARCHAR(MAX) NULL',
+                'receipt_number': 'NVARCHAR(100) NULL',
+                'created_at': 'DATETIME DEFAULT GETDATE()'
+            }
+            
+            for col_name, col_type in columns_to_check.items():
+                try:
+                    cursor.execute(f"SELECT COL_LENGTH('expenses', '{col_name}')")
+                    if cursor.fetchone()[0] is None:
+                        cursor.execute(f"ALTER TABLE expenses ADD [{col_name}] {col_type}")
+                        self.connection.commit()
+                        print(f"✅ Added column {col_name} to expenses")
+                except Exception as e:
+                    print(f"⚠️ Could not add {col_name} to expenses: {e}")
+                    
+        except Exception as e:
+            print(f"⚠️ Error ensuring expenses columns: {e}")
 
     def ensure_all_columns(self, cursor):
         """Ensure all required columns exist"""
         try:
             cursor.execute("""
-                SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
                 WHERE TABLE_NAME = 'drivers'
             """)
             if cursor.fetchone()[0] == 0:
@@ -69,7 +214,7 @@ class Database:
             columns_to_check = {
                 'drivers': [
                     ('route_id', 'INT NULL'),
-                    ('status', 'NVARCHAR(20) NOT NULL DEFAULT "active"')
+                    ('status', "NVARCHAR(20) DEFAULT 'active'")
                 ],
                 'vehicles': [
                     ('vehicle_id', 'NVARCHAR(50)'),
@@ -81,11 +226,11 @@ class Database:
                     ('puc_expiry_date', 'DATE'),
                     ('upload_puc_document_copy_file_path', 'NVARCHAR(500)'),
                     ('notes', 'NVARCHAR(MAX)'),
-                    ('status', 'NVARCHAR(20) NOT NULL DEFAULT "active"'),
-                    ('driver_id', 'INT NULL')  # Add this
+                    ('status', "NVARCHAR(20) DEFAULT 'active'"),
+                    ('driver_id', 'INT NULL')
                 ],
                 'clients': [
-                    ('status', 'NVARCHAR(20) NOT NULL DEFAULT "active"')
+                    ('status', "NVARCHAR(20) DEFAULT 'active'")
                 ]
             }
 
@@ -110,8 +255,7 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
-            # Check if driver_id column exists
+
             cursor.execute("SELECT COL_LENGTH('vehicles', 'driver_id')")
             result = cursor.fetchone()
             if result is None or result[0] is None:
@@ -120,11 +264,64 @@ class Database:
                 print("✅ Added driver_id column to vehicles table")
             else:
                 print("✅ driver_id column already exists in vehicles table")
-            
+
             cursor.close()
             return True
         except Exception as e:
             print(f"❌ Error adding driver_id column: {e}")
+            return False
+
+    def ensure_routes_columns(self):
+        """
+        Ensure the routes table has every column the /shipments/routes
+        endpoint (get_routes) and the freight-calculation logic depend on.
+        """
+        try:
+            cursor = self.get_cursor()
+            if not cursor:
+                return False
+
+            cursor.execute("""
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_NAME = 'routes'
+            """)
+            if cursor.fetchone()[0] == 0:
+                print("⚠️ routes table not found, skipping column checks")
+                cursor.close()
+                return False
+
+            columns_to_add = {
+                'rate_per_kg': 'DECIMAL(18,2) DEFAULT 0',
+                'rate_per_ton': 'DECIMAL(18,2) DEFAULT 0',
+                'minimum_charge': 'DECIMAL(18,2) DEFAULT 0',
+                'price': 'DECIMAL(18,2) DEFAULT 0',
+                'distance_km': 'DECIMAL(18,2) DEFAULT 0',
+                'estimated_days': 'INT DEFAULT 1',
+                'via': 'NVARCHAR(255) NULL',
+                'stoppage': 'NVARCHAR(255) NULL',
+                'status': "NVARCHAR(20) DEFAULT 'active'",
+            }
+
+            for col_name, col_type in columns_to_add.items():
+                try:
+                    cursor.execute(f"SELECT COL_LENGTH('routes', '{col_name}')")
+                    result = cursor.fetchone()
+                    if result is None or result[0] is None:
+                        cursor.execute(
+                            f"ALTER TABLE routes ADD [{col_name}] {col_type}"
+                        )
+                        self.connection.commit()
+                        print(f"✅ Added {col_name} to routes")
+                except Exception as e:
+                    print(f"⚠️ Could not add {col_name} to routes: {e}")
+
+            cursor.close()
+            return True
+
+        except Exception as e:
+            print(f"❌ Error ensuring routes columns: {e}")
+            if self.connection:
+                self.connection.rollback()
             return False
 
     def test_connection(self):
@@ -145,7 +342,7 @@ class Database:
             print("⚠️ No database connection, attempting to reconnect...")
             if not self.connect():
                 return None
-        
+
         try:
             cursor = self.connection.cursor()
             return cursor
@@ -189,21 +386,21 @@ class Database:
                     "phone": "",
                     "role": "admin"
                 }
-            
+
             cursor = self.get_cursor()
             if not cursor:
                 return None
-            
+
             cursor.execute(
                 "SELECT id, full_name, email, phone FROM drivers WHERE email = ? AND password = ?",
                 (email, password)
             )
             row = cursor.fetchone()
             cursor.close()
-            
+
             if not row:
                 return None
-            
+
             return {
                 "id": row[0],
                 "full_name": row[1],
@@ -211,7 +408,7 @@ class Database:
                 "phone": row[3],
                 "role": "driver"
             }
-            
+
         except Exception as e:
             print(f"❌ Auth error: {e}")
             return None
@@ -226,11 +423,14 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return []
-            
+
+            # ✅ route_id included so the frontend can auto-fill a driver's
+            # route when creating a challan (see AllShipments.jsx driver
+            # select handler).
             query = """
-                SELECT id, full_name, email, phone, license_number, 
-                       status, wallet_balance, created_at 
-                FROM drivers 
+                SELECT id, full_name, email, phone, license_number,
+                       status, wallet_balance, route_id, created_at
+                FROM drivers
                 ORDER BY id ASC
             """
             cursor.execute(query)
@@ -240,6 +440,8 @@ class Database:
             return self.serialize([dict(zip(columns, row)) for row in rows])
         except Exception as e:
             print(f"❌ Error fetching drivers: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def get_driver_by_id(self, driver_id):
@@ -250,21 +452,23 @@ class Database:
                 return None
             cursor.execute(
                 """
-                SELECT id, full_name, email, phone, license_number, 
-                       status, wallet_balance, created_at 
-                FROM drivers 
+                SELECT id, full_name, email, phone, license_number,
+                       status, wallet_balance, route_id, created_at
+                FROM drivers
                 WHERE id = ?
                 """,
                 (driver_id,)
             )
+            columns = [col[0] for col in cursor.description]  # ✅ read before close
             row = cursor.fetchone()
             cursor.close()
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def get_driver_by_email(self, email):
@@ -319,24 +523,21 @@ class Database:
             print("=" * 50)
             print("🔍 DATABASE: create_driver called")
             print(f"  Data received: {data}")
-            
+
             cursor = self.get_cursor()
             if not cursor:
                 print("❌ No cursor available")
                 return None
-            
-            # Check if drivers table exists
+
             cursor.execute("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'drivers'")
             if cursor.fetchone()[0] == 0:
                 print("❌ drivers table does not exist!")
                 return None
-            
-            # Check columns in drivers table
+
             cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'drivers'")
             columns = [row[0] for row in cursor.fetchall()]
             print(f"🔍 Available columns: {columns}")
-            
-            # Base fields - always required
+
             insert_fields = ["full_name", "email", "phone", "password", "status"]
             values = [
                 data.get("full_name"),
@@ -345,43 +546,42 @@ class Database:
                 data.get("password", "default123"),
                 data.get("status", "active")
             ]
-            
-            # Optional fields - only add if they exist in table and have values
+
             optional_fields = [
-                "dob", "experience", "license_number", "bank_name", 
+                "dob", "experience", "license_number", "bank_name",
                 "account_number", "ifsc_code", "bank_branch", "aadhar_card",
-                "pan_card", "medical_report", "police_verification", 
+                "pan_card", "medical_report", "police_verification",
                 "emergency_contact", "address_proof", "route_id", "wallet_balance"
             ]
-            
+
             for field in optional_fields:
                 if field in columns:
                     value = data.get(field)
                     if value is not None and value != "":
                         insert_fields.append(field)
                         values.append(value)
-            
+
             placeholders = ", ".join(["?"] * len(insert_fields))
             field_names = ", ".join(insert_fields)
-            
+
             query = f"""
                 INSERT INTO drivers ({field_names})
                 OUTPUT INSERTED.id
                 VALUES ({placeholders})
             """
-            
+
             print(f"🔍 Query: {query}")
             print(f"🔍 Values: {values}")
-            
+
             cursor.execute(query, values)
             row = cursor.fetchone()
             driver_id = row[0] if row else None
             print(f"🔍 Driver ID created: {driver_id}")
-            
+
             self.connection.commit()
             cursor.close()
             return driver_id
-            
+
         except Exception as e:
             print(f"❌ Error creating driver: {e}")
             import traceback
@@ -398,15 +598,20 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
+
             fields = []
             values = []
             for key, value in data.items():
-                if value is not None:
+                if value is not None and value != "":  # ✅ don't write empty strings
                     fields.append(f"{key} = ?")
                     values.append(value)
+
+            if not fields:
+                cursor.close()
+                return True
+
             values.append(driver_id)
-            
+
             cursor.execute(
                 f"UPDATE drivers SET {', '.join(fields)} WHERE id = ?",
                 values
@@ -416,6 +621,8 @@ class Database:
             return True
         except Exception as e:
             print(f"❌ Error updating driver: {e}")
+            import traceback
+            traceback.print_exc()
             if self.connection:
                 self.connection.rollback()
             return False
@@ -461,14 +668,14 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return {}
-            
+
             stats = {}
             cursor.execute("SELECT COUNT(*) FROM drivers")
             stats["TotalDrivers"] = cursor.fetchone()[0]
-            
+
             cursor.execute("SELECT COUNT(*) FROM drivers WHERE status = 'active'")
             stats["ActiveDrivers"] = cursor.fetchone()[0]
-            
+
             cursor.close()
             return stats
         except Exception as e:
@@ -503,26 +710,109 @@ class Database:
     # VEHICLE METHODS
     # ==========================================
 
-    def get_all_vehicles(self):
-        """Get all vehicles with driver info"""
+    def get_vehicle_by_code(self, vehicle_code):
+        """Get vehicle by vehicle_code (VEH-0023)"""
+        try:
+            cursor = self.get_cursor()
+            if not cursor:
+                return None
+
+            cursor.execute("""
+                SELECT
+                    v.id,
+                    v.vehicle_id,
+                    v.type,
+                    v.company_name,
+                    v.year,
+                    v.license_plate,
+                    v.puc_certificate_number,
+                    v.puc_expiry_date,
+                    v.status,
+                    v.created_at,
+                    v.driver_id,
+                    d.full_name as driver_name,
+                    d.phone as driver_phone
+                FROM vehicles v
+                LEFT JOIN drivers d ON v.driver_id = d.id
+                WHERE v.vehicle_id = ?
+            """, (vehicle_code,))
+
+            columns = [col[0] for col in cursor.description]  # ✅ read before fetch/close
+            row = cursor.fetchone()
+            cursor.close()
+
+            if not row:
+                return None
+
+            return self.serialize(dict(zip(columns, row)))
+
+        except Exception as e:
+            print(f"❌ Error fetching vehicle by code: {e}")
+            return None
+
+    def get_vehicles_by_driver(self, driver_id):
+        """Get vehicles assigned to a specific driver"""
         try:
             cursor = self.get_cursor()
             if not cursor:
                 return []
+
+            try:
+                driver_id = int(driver_id)
+            except (ValueError, TypeError):
+                return []
+
             cursor.execute("""
-                SELECT 
-                    v.id, 
-                    v.vehicle_id, 
-                    v.type, 
-                    v.company_name, 
-                    v.year, 
+                SELECT
+                    v.id,
+                    v.vehicle_id,
+                    v.type,
+                    v.company_name,
+                    v.year,
                     v.license_plate,
-                    v.puc_certificate_number, 
-                    v.puc_expiry_date, 
-                    v.status, 
+                    v.puc_certificate_number,
+                    v.puc_expiry_date,
+                    v.status,
+                    v.driver_id
+                FROM vehicles v
+                WHERE v.driver_id = ?
+                AND (v.status = 'active' OR v.status IS NULL)
+                ORDER BY v.id ASC
+            """, (driver_id,))
+
+            columns = [col[0] for col in cursor.description]
+            rows = cursor.fetchall()
+            cursor.close()
+
+            return self.serialize([
+                dict(zip(columns, row))
+                for row in rows
+            ])
+
+        except Exception as e:
+            print(f"❌ Error fetching vehicles by driver: {e}")
+            return []
+
+    def get_all_vehicles(self):
+        try:
+            cursor = self.get_cursor()
+            if not cursor:
+                return []
+
+            cursor.execute("""
+                SELECT
+                    v.id,
+                    v.vehicle_id,
+                    v.type,
+                    v.company_name,
+                    v.year,
+                    v.license_plate,
+                    v.puc_certificate_number,
+                    v.puc_expiry_date,
+                    v.status,
                     v.created_at,
                     v.driver_id,
-                    d.full_name as driver_name,
+                    ISNULL(d.full_name, 'Unassigned') as driver_name,
                     d.phone as driver_phone
                 FROM vehicles v
                 LEFT JOIN drivers d ON v.driver_id = d.id
@@ -531,9 +821,23 @@ class Database:
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
             cursor.close()
-            return self.serialize([dict(zip(columns, row)) for row in rows])
+
+            result = []
+            for row in rows:
+                vehicle_dict = {}
+                for i, col in enumerate(columns):
+                    value = row[i]
+                    if hasattr(value, 'isoformat'):
+                        value = value.isoformat()
+                    vehicle_dict[col] = value
+                result.append(vehicle_dict)
+
+            return result
+
         except Exception as e:
             print(f"❌ Error fetching vehicles: {e}")
+            import traceback
+            traceback.print_exc()
             return []
 
     def get_vehicle_by_id(self, vehicle_id):
@@ -543,16 +847,18 @@ class Database:
             if not cursor:
                 return None
             cursor.execute("""
-                SELECT 
-                    v.id, 
-                    v.vehicle_id, 
-                    v.type, 
-                    v.company_name, 
-                    v.year, 
+                SELECT
+                    v.id,
+                    v.vehicle_id,
+                    v.type,
+                    v.company_name,
+                    v.year,
                     v.license_plate,
-                    v.puc_certificate_number, 
-                    v.puc_expiry_date, 
-                    v.status, 
+                    v.puc_certificate_number,
+                    v.puc_expiry_date,
+                    v.notes,
+                    v.upload_puc_document_copy_file_path,
+                    v.status,
                     v.created_at,
                     v.driver_id,
                     d.full_name as driver_name,
@@ -561,11 +867,11 @@ class Database:
                 LEFT JOIN drivers d ON v.driver_id = d.id
                 WHERE v.id = ?
             """, (vehicle_id,))
+            columns = [col[0] for col in cursor.description]  # ✅ read before close
             row = cursor.fetchone()
             cursor.close()
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error: {e}")
@@ -577,52 +883,67 @@ class Database:
             print("=" * 50)
             print("🔍 DATABASE: create_vehicle called")
             print(f"  Data received: {data}")
-            
+
             cursor = self.get_cursor()
             if not cursor:
                 print("❌ No cursor available")
                 return None
-            
-            # Convert year to int if provided
+
+            cursor.execute("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'vehicles'")
+            table_exists = cursor.fetchone()[0]
+            print(f"🔍 Vehicles table exists: {table_exists}")
+
+            if table_exists == 0:
+                print("❌ Vehicles table does not exist!")
+                return None
+
+            cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'vehicles'")
+            columns = [row[0] for row in cursor.fetchall()]
+            print(f"🔍 Columns in vehicles: {columns}")
+
             year = data.get("year")
             if year:
                 try:
                     year = int(year)
                 except (ValueError, TypeError):
                     year = None
-            
-            # Get driver_id
+
             driver_id = data.get("driver_id")
+            print(f"🔍 Raw driver_id from data: {driver_id}")
+
             if driver_id == "":
                 driver_id = None
             elif driver_id:
                 try:
                     driver_id = int(driver_id)
+                    print(f"🔍 Parsed driver_id: {driver_id}")
                 except (ValueError, TypeError):
                     driver_id = None
-            
+                    print(f"⚠️ Invalid driver_id, setting to None")
+
             print(f"  Inserting: type={data.get('type')}, company={data.get('company_name')}, year={year}, driver_id={driver_id}")
-            
+
             cursor.execute(
                 """
-                INSERT INTO vehicles (vehicle_id, type, company_name, year, license_plate, 
-                                     puc_certificate_number, puc_expiry_date, status, driver_id)
+                INSERT INTO vehicles (vehicle_id, type, company_name, year, license_plate,
+                                    puc_certificate_number, puc_expiry_date, notes, status, driver_id)
                 OUTPUT INSERTED.id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
-                    None,  # vehicle_id - will be updated after insert
+                    None,
                     data.get("type"),
                     data.get("company_name"),
                     year,
                     data.get("license_plate"),
                     data.get("puc_certificate_number"),
                     data.get("puc_expiry_date"),
+                    data.get("notes"),
                     data.get("status", "active"),
                     driver_id
                 )
             )
-            
+
             row = cursor.fetchone()
             if row:
                 vehicle_pk = row[0]
@@ -630,7 +951,7 @@ class Database:
             else:
                 print("❌ No row returned from INSERT")
                 return None
-            
+
             generated_code = f"VEH-{vehicle_pk:04d}"
             print(f"  Generated vehicle_id: {generated_code}")
             cursor.execute(
@@ -639,12 +960,12 @@ class Database:
             )
             self.connection.commit()
             print("✅ Transaction committed")
-            
+
             cursor.close()
             print(f"✅ Returning vehicle_pk: {vehicle_pk}")
             print("=" * 50)
             return vehicle_pk
-            
+
         except Exception as e:
             print(f"❌ Error creating vehicle: {e}")
             import traceback
@@ -661,10 +982,10 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
+
             fields = []
             values = []
-            
+
             if "year" in data and data["year"] is not None:
                 try:
                     year = int(data["year"])
@@ -672,8 +993,7 @@ class Database:
                     values.append(year)
                 except (ValueError, TypeError):
                     pass
-            
-            # Handle driver_id specifically
+
             if "driver_id" in data:
                 driver_id = data["driver_id"]
                 if driver_id == "":
@@ -685,18 +1005,18 @@ class Database:
                         driver_id = None
                 fields.append("driver_id = ?")
                 values.append(driver_id)
-            
-            for key in ["type", "company_name", "license_plate", "puc_certificate_number", 
+
+            for key in ["type", "company_name", "license_plate", "puc_certificate_number",
                        "puc_expiry_date", "notes", "status", "upload_puc_document_copy_file_path"]:
                 if key in data and data[key] is not None:
                     fields.append(f"{key} = ?")
                     values.append(data[key])
-            
+
             if not fields:
                 return True
-                
+
             values.append(vehicle_id)
-            
+
             cursor.execute(
                 f"UPDATE vehicles SET {', '.join(fields)} WHERE id = ?",
                 values
@@ -759,11 +1079,11 @@ class Database:
                 "SELECT id, company_name, email, phone, address, status, created_at FROM clients WHERE id = ?",
                 (client_id,)
             )
+            columns = [col[0] for col in cursor.description]  # ✅ read before close
             row = cursor.fetchone()
             cursor.close()
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error: {e}")
@@ -808,15 +1128,20 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
+
             fields = []
             values = []
             for key, value in data.items():
-                if value is not None:
+                if value is not None and value != "":
                     fields.append(f"{key} = ?")
                     values.append(value)
+
+            if not fields:
+                cursor.close()
+                return True
+
             values.append(client_id)
-            
+
             cursor.execute(
                 f"UPDATE clients SET {', '.join(fields)} WHERE id = ?",
                 values
@@ -849,6 +1174,57 @@ class Database:
     # ==========================================
     # SHIPMENT METHODS
     # ==========================================
+    def ensure_shipment_columns(self):
+        """Ensure required shipment columns exist"""
+        try:
+            cursor = self.get_cursor()
+            if not cursor:
+                return False
+
+            cursor.execute("""
+                SELECT COUNT(*)
+                FROM INFORMATION_SCHEMA.TABLES
+                WHERE TABLE_NAME = 'shipments'
+            """)
+
+            if cursor.fetchone()[0] == 0:
+                print("⚠️ shipments table not found")
+                cursor.close()
+                return False
+
+            columns_to_add = {
+                "challan_number": "NVARCHAR(50) NULL",
+                "pickup_location": "NVARCHAR(255) NULL",
+                "delivery_location": "NVARCHAR(255) NULL",
+                "goods_desc": "NVARCHAR(MAX) NULL",
+                "weight_type": "NVARCHAR(50) NULL",
+                "route_id": "INT NULL",        # ✅ needed for challan auto-fill / edit form
+                "notes": "NVARCHAR(MAX) NULL", # ✅ used by the shipment edit form
+            }
+
+            for col_name, col_type in columns_to_add.items():
+                cursor.execute(
+                    "SELECT COL_LENGTH('shipments', ?)",
+                    (col_name,)
+                )
+
+                result = cursor.fetchone()
+
+                if result is None or result[0] is None:
+                    cursor.execute(
+                        f"ALTER TABLE shipments ADD [{col_name}] {col_type}"
+                    )
+                    self.connection.commit()
+                    print(f"✅ Added {col_name} to shipments")
+
+            cursor.close()
+            return True
+
+        except Exception as e:
+            print(f"❌ Error ensuring shipment columns: {e}")
+            if self.connection:
+                self.connection.rollback()
+            return False
 
     def get_all_shipments(self):
         """Get all shipments"""
@@ -856,10 +1232,13 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return []
+            # ✅ route_id + notes included so the frontend (AllShipments.jsx)
+            # can actually display/edit the route a shipment is assigned to,
+            # instead of always falling back to "N/A".
             cursor.execute("""
                 SELECT id, lr_number, tracking_id, booking_date, destination, client,
                        weight, driver_id, vehicle_id, status, freight_charge,
-                       payment_mode, created_at, updated_at
+                       payment_mode, created_at, updated_at, route_id, notes
                 FROM shipments
                 ORDER BY id ASC
             """)
@@ -877,24 +1256,27 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return None
+            # ✅ route_id + notes included — same reason as get_all_shipments.
             cursor.execute(
                 """
                 SELECT id, lr_number, tracking_id, booking_date, destination, client,
                        weight, driver_id, vehicle_id, status, freight_charge,
-                       payment_mode, created_at, updated_at
+                       payment_mode, created_at, updated_at, route_id, notes
                 FROM shipments
                 WHERE id = ?
                 """,
                 (shipment_id,)
             )
+            columns = [col[0] for col in cursor.description]  # ✅ FIX: read before close
             row = cursor.fetchone()
             cursor.close()
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def create_shipment(self, data):
@@ -946,15 +1328,31 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
+
             fields = []
             values = []
             for key, value in data.items():
-                if value is not None:
+                # ✅ FIX: skip empty strings too, not just None. Previously an
+                # empty ETA ("") or empty route_id got written literally as
+                # '' into columns that aren't NVARCHAR (e.g. eta DATETIME,
+                # route_id INT), causing a SQL Server conversion error and a
+                # 500 on PUT /shipments/{id}.
+                if key == "eta" and value == "":
+                    value = None
+                if value is not None and value != "":
                     fields.append(f"{key} = ?")
                     values.append(value)
+                elif key == "eta" and value is None:
+                    # allow explicitly clearing the ETA
+                    fields.append("eta = ?")
+                    values.append(None)
+
+            if not fields:
+                cursor.close()
+                return True
+
             values.append(shipment_id)
-            
+
             cursor.execute(
                 f"UPDATE shipments SET {', '.join(fields)} WHERE id = ?",
                 values
@@ -964,6 +1362,8 @@ class Database:
             return True
         except Exception as e:
             print(f"❌ Error updating shipment: {e}")
+            import traceback
+            traceback.print_exc()
             if self.connection:
                 self.connection.rollback()
             return False
@@ -980,6 +1380,8 @@ class Database:
             return True
         except Exception as e:
             print(f"❌ Error deleting shipment: {e}")
+            import traceback
+            traceback.print_exc()
             if self.connection:
                 self.connection.rollback()
             return False
@@ -1117,21 +1519,20 @@ class Database:
             if not cursor:
                 print("❌ No cursor available")
                 return []
-            
-            # Check if branches table exists
+
             cursor.execute("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'branches'")
             if cursor.fetchone()[0] == 0:
                 print("❌ branches table does not exist!")
                 return []
-            
+
             cursor.execute("""
-                SELECT id, name, address, city, state, created_at 
-                FROM branches 
+                SELECT id, name, address, city, state, created_at
+                FROM branches
                 ORDER BY id ASC
             """)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
-            
+
             result = []
             for row in rows:
                 branch_dict = {}
@@ -1141,7 +1542,7 @@ class Database:
                         value = value.isoformat()
                     branch_dict[col] = value
                 result.append(branch_dict)
-            
+
             print(f"✅ Found {len(result)} branches")
             return result
         except Exception as e:
@@ -1161,17 +1562,17 @@ class Database:
                 return None
             cursor.execute(
                 """
-                SELECT id, name, address, city, state, created_at 
-                FROM branches 
+                SELECT id, name, address, city, state, created_at
+                FROM branches
                 WHERE id = ?
                 """,
                 (branch_id,)
             )
+            columns = [col[0] for col in cursor.description]  # ✅ read before close
             row = cursor.fetchone()
             cursor.close()
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error fetching branch: {e}")
@@ -1183,7 +1584,7 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return None
-            
+
             cursor.execute(
                 """
                 INSERT INTO branches (name, address, city, state)
@@ -1216,21 +1617,21 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
+
             fields = []
             values = []
             allowed_fields = ["name", "address", "city", "state"]
-            
+
             for key, value in data.items():
                 if key in allowed_fields and value is not None:
                     fields.append(f"{key} = ?")
                     values.append(value)
-            
+
             if not fields:
                 return True
-                
+
             values.append(branch_id)
-            
+
             cursor.execute(
                 f"UPDATE branches SET {', '.join(fields)} WHERE id = ?",
                 values
@@ -1271,8 +1672,8 @@ class Database:
             if not cursor:
                 return []
             cursor.execute("""
-                SELECT id, name, type, email, phone, address, city, state, gstin, status, created_at 
-                FROM parties 
+                SELECT id, name, type, email, phone, address, city, state, gstin, status, created_at
+                FROM parties
                 ORDER BY id ASC
             """)
             columns = [col[0] for col in cursor.description]
@@ -1291,17 +1692,17 @@ class Database:
                 return None
             cursor.execute(
                 """
-                SELECT id, name, type, email, phone, address, city, state, gstin, status, created_at 
-                FROM parties 
+                SELECT id, name, type, email, phone, address, city, state, gstin, status, created_at
+                FROM parties
                 WHERE id = ?
                 """,
                 (party_id,)
             )
+            columns = [col[0] for col in cursor.description]  # ✅ read before close
             row = cursor.fetchone()
             cursor.close()
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error fetching party: {e}")
@@ -1311,12 +1712,12 @@ class Database:
         """Create new party"""
         try:
             print(f"🔍 Creating party with data: {data}")
-            
+
             cursor = self.get_cursor()
             if not cursor:
                 print("❌ No cursor available")
                 return None
-            
+
             cursor.execute(
                 """
                 INSERT INTO parties (name, type, email, phone, address, city, state, gstin, status)
@@ -1338,11 +1739,11 @@ class Database:
             row = cursor.fetchone()
             party_id = row[0] if row else None
             print(f"🔍 Party ID created: {party_id}")
-            
+
             self.connection.commit()
             cursor.close()
             return party_id
-            
+
         except Exception as e:
             print(f"❌ Error creating party: {e}")
             if self.connection:
@@ -1357,21 +1758,21 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
+
             fields = []
             values = []
             allowed_fields = ["name", "type", "email", "phone", "address", "city", "state", "gstin", "status"]
-            
+
             for key, value in data.items():
                 if key in allowed_fields and value is not None:
                     fields.append(f"{key} = ?")
                     values.append(value)
-            
+
             if not fields:
                 return True
-                
+
             values.append(party_id)
-            
+
             cursor.execute(
                 f"UPDATE parties SET {', '.join(fields)} WHERE id = ?",
                 values
@@ -1402,7 +1803,7 @@ class Database:
             return False
 
     # ==========================================
-    # ROUTE METHODS - FIXED VERSION
+    # ROUTE METHODS
     # ==========================================
     def get_all_routes(self):
         """Get all routes"""
@@ -1413,24 +1814,23 @@ class Database:
             if not cursor:
                 print("❌ No cursor available")
                 return []
-            
-            # Check if table exists
+
             cursor.execute("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'routes'")
             if cursor.fetchone()[0] == 0:
                 print("❌ routes table does not exist!")
                 return []
-            
-            # ✅ Include price in SELECT
+
             cursor.execute("""
-                SELECT id, pickup_location, destination, via, stoppage, 
-                       status, distance_km, rate_per_kg, price, estimated_days,
+                SELECT id, pickup_location, destination, via, stoppage,
+                       status, distance_km, rate_per_kg, rate_per_ton,
+                       minimum_charge, price, estimated_days,
                        created_at
-                FROM routes 
+                FROM routes
                 ORDER BY id ASC
             """)
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
-            
+
             result = []
             for row in rows:
                 route_dict = {}
@@ -1440,10 +1840,10 @@ class Database:
                         value = value.isoformat()
                     route_dict[col] = value
                 result.append(route_dict)
-            
+
             print(f"✅ Found {len(result)} routes")
             return result
-            
+
         except Exception as e:
             print(f"❌ Error fetching routes: {e}")
             import traceback
@@ -1459,21 +1859,26 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return None
+
             cursor.execute(
                 """
-                SELECT id, pickup_location, destination, via, stoppage, 
-                    status, distance_km, rate_per_kg, price, estimated_days,
+                SELECT id, pickup_location, destination, via, stoppage,
+                    status, distance_km, rate_per_kg, rate_per_ton,
+                    minimum_charge, price, estimated_days,
                     created_at
                 FROM routes
                 WHERE id = ?
                 """,
                 (route_id,)
             )
+
+            columns = [col[0] for col in cursor.description]  # already correct: before fetch
             row = cursor.fetchone()
             cursor.close()
+
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
+
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error fetching route: {e}")
@@ -1484,32 +1889,30 @@ class Database:
         try:
             print("🔍 DATABASE: create_route called")
             print(f"  Data received: {data}")
-            
+
             cursor = self.get_cursor()
             if not cursor:
                 print("❌ No cursor available")
                 return None
-            
-            # Check if routes table exists
+
             cursor.execute("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'routes'")
             if cursor.fetchone()[0] == 0:
                 print("❌ routes table does not exist!")
                 return None
-            
-            # Check columns
+
             cursor.execute("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'routes'")
             columns = [row[0] for row in cursor.fetchall()]
             print(f"🔍 Available columns: {columns}")
-            
-            # ✅ Include price in the insert
+
             cursor.execute(
                 """
                 INSERT INTO routes (
-                    pickup_location, destination, via, stoppage, status, 
-                    distance_km, rate_per_kg, price, estimated_days
+                    pickup_location, destination, via, stoppage, status,
+                    distance_km, rate_per_kg, rate_per_ton, minimum_charge,
+                    price, estimated_days
                 )
                 OUTPUT INSERTED.id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     data.get("pickup_location"),
@@ -1519,19 +1922,21 @@ class Database:
                     data.get("status", "active"),
                     data.get("distance_km", 0),
                     data.get("rate_per_kg", 0),
-                    data.get("price", 0),  # ✅ price column added
+                    data.get("rate_per_ton", 0),
+                    data.get("minimum_charge", 0),
+                    data.get("price", 0),
                     data.get("estimated_days", 1)
                 )
             )
-            
+
             row = cursor.fetchone()
             route_id = row[0] if row else None
             print(f"🔍 Route ID created: {route_id}")
-            
+
             self.connection.commit()
             cursor.close()
             return route_id
-            
+
         except Exception as e:
             print(f"❌ Error creating route: {e}")
             import traceback
@@ -1548,7 +1953,7 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
+
             cursor.execute(
                 """
                 UPDATE routes SET
@@ -1559,6 +1964,8 @@ class Database:
                     status = ?,
                     distance_km = ?,
                     rate_per_kg = ?,
+                    rate_per_ton = ?,
+                    minimum_charge = ?,
                     price = ?,
                     estimated_days = ?
                 WHERE id = ?
@@ -1571,6 +1978,8 @@ class Database:
                     data.get("status", "active"),
                     data.get("distance_km", 0),
                     data.get("rate_per_kg", 0),
+                    data.get("rate_per_ton", 0),
+                    data.get("minimum_charge", 0),
                     data.get("price", 0),
                     data.get("estimated_days", 1),
                     route_id
@@ -1612,17 +2021,15 @@ class Database:
             if not cursor:
                 print("❌ No cursor available in get_all_cities")
                 return []
-            
-            # Check if cities table exists
+
             cursor.execute("""
-                SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES 
+                SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES
                 WHERE TABLE_NAME = 'cities'
             """)
             table_exists = cursor.fetchone()[0]
-            
+
             if not table_exists:
                 print("❌ cities table does not exist! Creating one...")
-                # Create cities table
                 cursor.execute("""
                     CREATE TABLE cities (
                         id INT IDENTITY(1,1) PRIMARY KEY,
@@ -1635,8 +2042,7 @@ class Database:
                 """)
                 self.connection.commit()
                 print("✅ Created cities table")
-                
-                # Insert sample cities
+
                 sample_cities = [
                     ('Mumbai', 'Maharashtra', '400001'),
                     ('Delhi', 'Delhi', '110001'),
@@ -1659,7 +2065,7 @@ class Database:
                     ('Vadodara', 'Gujarat', '390001'),
                     ('Ludhiana', 'Punjab', '141001'),
                 ]
-                
+
                 for city in sample_cities:
                     cursor.execute(
                         "INSERT INTO cities (name, state, pincode, status) VALUES (?, ?, ?, 'active')",
@@ -1667,19 +2073,18 @@ class Database:
                     )
                 self.connection.commit()
                 print(f"✅ Inserted {len(sample_cities)} sample cities")
-            
-            # Now fetch all cities
+
             cursor.execute("""
-                SELECT id, name, state, pincode, status, created_at 
-                FROM cities 
+                SELECT id, name, state, pincode, status, created_at
+                FROM cities
                 WHERE status = 'active' OR status IS NULL
                 ORDER BY name ASC
             """)
-            
+
             columns = [col[0] for col in cursor.description]
             rows = cursor.fetchall()
             cursor.close()
-            
+
             result = []
             for row in rows:
                 city_dict = {}
@@ -1689,10 +2094,10 @@ class Database:
                         value = value.isoformat()
                     city_dict[col] = value
                 result.append(city_dict)
-            
+
             print(f"✅ Found {len(result)} cities")
             return result
-            
+
         except Exception as e:
             print(f"❌ Error fetching cities: {e}")
             import traceback
@@ -1706,38 +2111,36 @@ class Database:
             if not cursor:
                 print("❌ No cursor in get_city_by_id")
                 return None
-            
-            # Check columns
+
             cursor.execute("SELECT COL_LENGTH('cities', 'pincode')")
             has_pincode = cursor.fetchone()[0] is not None
-            
+
             cursor.execute("SELECT COL_LENGTH('cities', 'status')")
             has_status = cursor.fetchone()[0] is not None
-            
-            # Build SELECT query
+
             select_fields = ["id", "name", "state"]
             if has_pincode:
                 select_fields.append("pincode")
             if has_status:
                 select_fields.append("status")
             select_fields.append("created_at")
-            
+
             query = f"SELECT {', '.join(select_fields)} FROM cities WHERE id = ?"
             print(f"🔍 get_city_by_id query: {query}, id: {city_id}")
-            
+
             cursor.execute(query, (city_id,))
+            columns = [col[0] for col in cursor.description]  # ✅ FIX: read before close
             row = cursor.fetchone()
             cursor.close()
-            
+
             if not row:
                 print(f"❌ No city found with id: {city_id}")
                 return None
-                
-            columns = [col[0] for col in cursor.description]
+
             result = self.serialize(dict(zip(columns, row)))
             print(f"✅ get_city_by_id result: {result}")
             return result
-            
+
         except Exception as e:
             print(f"❌ Error fetching city: {e}")
             import traceback
@@ -1748,21 +2151,20 @@ class Database:
         """Create new city"""
         try:
             print(f"🔍 Creating city with data: {data}")
-            
+
             cursor = self.get_cursor()
             if not cursor:
                 print("❌ No cursor available")
                 return None
-            
-            # Check columns
+
             cursor.execute("SELECT COL_LENGTH('cities', 'pincode')")
             has_pincode = cursor.fetchone()[0] is not None
-            
+
             cursor.execute("SELECT COL_LENGTH('cities', 'status')")
             has_status = cursor.fetchone()[0] is not None
-            
+
             print(f"🔍 Has pincode: {has_pincode}, Has status: {has_status}")
-            
+
             if has_pincode and has_status:
                 cursor.execute(
                     """
@@ -1815,15 +2217,15 @@ class Database:
                         data.get("state")
                     )
                 )
-            
+
             row = cursor.fetchone()
             city_id = row[0] if row else None
             print(f"🔍 City ID created: {city_id}")
-            
+
             self.connection.commit()
             cursor.close()
             return city_id
-            
+
         except Exception as e:
             print(f"❌ Error creating city: {e}")
             if self.connection:
@@ -1838,38 +2240,37 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
-            # Check columns
+
             cursor.execute("SELECT COL_LENGTH('cities', 'pincode')")
             has_pincode = cursor.fetchone()[0] is not None
-            
+
             cursor.execute("SELECT COL_LENGTH('cities', 'status')")
             has_status = cursor.fetchone()[0] is not None
-            
+
             fields = []
             values = []
-            
+
             if "name" in data and data["name"] is not None:
                 fields.append("name = ?")
                 values.append(data["name"])
-            
+
             if "state" in data and data["state"] is not None:
                 fields.append("state = ?")
                 values.append(data["state"])
-            
+
             if has_pincode and "pincode" in data and data["pincode"] is not None:
                 fields.append("pincode = ?")
                 values.append(data["pincode"])
-            
+
             if has_status and "status" in data and data["status"] is not None:
                 fields.append("status = ?")
                 values.append(data["status"])
-            
+
             if not fields:
                 return True
-                
+
             values.append(city_id)
-            
+
             cursor.execute(
                 f"UPDATE cities SET {', '.join(fields)} WHERE id = ?",
                 values
@@ -1909,21 +2310,22 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return None
+            # ✅ route_id + notes included — same reason as get_all_shipments.
             cursor.execute(
                 """
                 SELECT id, lr_number, tracking_id, booking_date, destination, client,
                     weight, driver_id, vehicle_id, status, freight_charge,
-                    payment_mode, created_at, updated_at
+                    payment_mode, created_at, updated_at, route_id, notes
                 FROM shipments
                 WHERE lr_number = ?
                 """,
                 (lr_number,)
             )
+            columns = [col[0] for col in cursor.description]  # ✅ FIX: read before close
             row = cursor.fetchone()
             cursor.close()
             if not row:
                 return None
-            columns = [col[0] for col in cursor.description]
             return self.serialize(dict(zip(columns, row)))
         except Exception as e:
             print(f"❌ Error fetching shipment by LR number: {e}")
@@ -1958,11 +2360,9 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return False
-            
-            # Check if table exists
+
             cursor.execute("SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'challans'")
             if cursor.fetchone()[0] == 0:
-                # Create table
                 cursor.execute("""
                     CREATE TABLE challans (
                         id INT IDENTITY(1,1) PRIMARY KEY,
@@ -1981,15 +2381,15 @@ class Database:
                 print("✅ Created challans table")
                 cursor.close()
                 return True
-            
+
             # Add missing columns
             columns_to_add = {
                 'challan_date': 'DATE NULL',
                 'total_freight': 'DECIMAL(18,2) DEFAULT 0',
                 'total_weight': 'DECIMAL(18,2) DEFAULT 0',
-                'status': 'NVARCHAR(20) DEFAULT "active"'
+                'status': "NVARCHAR(20) DEFAULT 'active'"
             }
-            
+
             for col_name, col_type in columns_to_add.items():
                 try:
                     cursor.execute(f"SELECT COL_LENGTH('challans', '{col_name}')")
@@ -1999,69 +2399,239 @@ class Database:
                         print(f"✅ Added column {col_name} to challans")
                 except Exception as e:
                     print(f"⚠️ Could not add {col_name}: {e}")
-            
+
+            # ✅ FIX: some deployments of this table have a legacy `date`
+            # column (separate from `challan_date`) that's NOT NULL. The
+            # INSERT in create_challan_transactional never populated it,
+            # causing: "Cannot insert the value NULL into column 'date'".
+            # Make it nullable if it exists, so future inserts never break
+            # on it regardless of whether the app code fills it in.
+            try:
+                cursor.execute("SELECT COL_LENGTH('challans', 'date')")
+                if cursor.fetchone()[0] is not None:
+                    cursor.execute("ALTER TABLE challans ALTER COLUMN [date] DATE NULL")
+                    self.connection.commit()
+                    print("✅ Made legacy 'date' column on challans nullable")
+            except Exception as e:
+                print(f"⚠️ Could not alter legacy 'date' column: {e}")
+
             cursor.close()
             return True
-            
+
         except Exception as e:
             print(f"❌ Error ensuring challan columns: {e}")
             return False
 
     def create_challan_transactional(self, data):
-        """Create challan with proper transaction"""
+        """Create challan and assign selected shipments"""
         try:
             cursor = self.get_cursor()
             if not cursor:
                 return None, "Database connection failed"
-            
+
             challan_no = data.get("challan_no")
             driver_id = data.get("driver_id")
             vehicle_id = data.get("vehicle_id")
-            advance_paid = float(data.get("advance_paid", 0))
-            total_freight = float(data.get("total_freight", 0))
-            total_weight = float(data.get("total_weight", 0))
-            date = data.get("date", datetime.now().strftime('%Y-%m-%d'))
-            
-            # Insert challan
+
+            try:
+                driver_id = int(driver_id) if driver_id else None
+            except (ValueError, TypeError):
+                driver_id = None
+
+            try:
+                vehicle_id = int(vehicle_id) if vehicle_id else None
+            except (ValueError, TypeError):
+                vehicle_id = None
+
+            # ✅ FIX: the frontend (AllShipments.jsx generateChallan) sends
+            # route_id in the challan payload, but this function used to
+            # never read it — so a challan's shipments kept whatever route
+            # (or lack of one) they already had, and the Route column in
+            # AllShipments always showed "N/A" for challan-created LRs.
+            route_id = data.get("route_id")
+            try:
+                route_id = int(route_id) if route_id else None
+            except (ValueError, TypeError):
+                route_id = None
+
+            advance_paid = float(data.get("advance_paid", 0) or 0)
+            total_freight = float(data.get("total_freight", 0) or 0)
+            total_weight = float(data.get("total_weight", 0) or 0)
+
+            challan_date = data.get(
+                "date",
+                datetime.now().strftime("%Y-%m-%d")
+            )
+
+            shipment_ids = data.get("shipment_ids", [])
+
+            if not challan_no:
+                return None, "Challan number is required"
+
+            if not driver_id:
+                return None, "Driver is required"
+
+            if not vehicle_id:
+                return None, "Vehicle is required"
+
+            if not shipment_ids:
+                return None, "At least one shipment is required"
+
+            # ----------------------------------
+            # Validate driver
+            # ----------------------------------
+            cursor.execute(
+                "SELECT id FROM drivers WHERE id = ?",
+                (driver_id,)
+            )
+
+            if not cursor.fetchone():
+                return None, "Selected driver does not exist"
+
+            # ----------------------------------
+            # Validate vehicle belongs to driver
+            # ----------------------------------
             cursor.execute(
                 """
-                INSERT INTO challans (challan_no, challan_date, driver_id, vehicle_id, 
-                                    total_freight, total_weight, advance_paid, status)
-                OUTPUT INSERTED.id
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                SELECT id
+                FROM vehicles
+                WHERE id = ?
+                AND driver_id = ?
                 """,
-                (challan_no, date, driver_id, vehicle_id, 
-                total_freight, total_weight, advance_paid, 'active')
+                (vehicle_id, driver_id)
             )
-            
+
+            if not cursor.fetchone():
+                return None, "Selected vehicle is not assigned to this driver"
+
+            # ----------------------------------
+            # Create challan
+            # ✅ FIX: some tables have a legacy NOT NULL `date` column
+            # distinct from `challan_date`. Populate both with the same
+            # value so the insert never fails on it, regardless of whether
+            # ensure_challan_columns has run its ALTER COLUMN fix yet.
+            # ----------------------------------
+            has_legacy_date_col = False
+            try:
+                cursor.execute("SELECT COL_LENGTH('challans', 'date')")
+                has_legacy_date_col = cursor.fetchone()[0] is not None
+            except Exception:
+                has_legacy_date_col = False
+
+            if has_legacy_date_col:
+                cursor.execute(
+                    """
+                    INSERT INTO challans (
+                        challan_no,
+                        challan_date,
+                        [date],
+                        driver_id,
+                        vehicle_id,
+                        total_freight,
+                        total_weight,
+                        advance_paid,
+                        status
+                    )
+                    OUTPUT INSERTED.id
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        challan_no,
+                        challan_date,
+                        challan_date,
+                        driver_id,
+                        vehicle_id,
+                        total_freight,
+                        total_weight,
+                        advance_paid,
+                        "active"
+                    )
+                )
+            else:
+                cursor.execute(
+                    """
+                    INSERT INTO challans (
+                        challan_no,
+                        challan_date,
+                        driver_id,
+                        vehicle_id,
+                        total_freight,
+                        total_weight,
+                        advance_paid,
+                        status
+                    )
+                    OUTPUT INSERTED.id
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        challan_no,
+                        challan_date,
+                        driver_id,
+                        vehicle_id,
+                        total_freight,
+                        total_weight,
+                        advance_paid,
+                        "active"
+                    )
+                )
+
             row = cursor.fetchone()
             challan_id = row[0] if row else None
-            
+
             if not challan_id:
                 self.connection.rollback()
                 return None, "Failed to create challan"
-            
-            # Update shipments
-            shipment_ids = data.get("shipment_ids", [])
-            if shipment_ids:
-                placeholders = ",".join(["?"] * len(shipment_ids))
-                query = f"""
-                    UPDATE shipments 
-                    SET challan_number = ?, status = 'in-transit', 
-                        driver_id = ?, vehicle_id = ?
-                    WHERE id IN ({placeholders})
-                """
-                params = [challan_no, driver_id, vehicle_id] + shipment_ids
-                cursor.execute(query, params)
-            
+
+            # ----------------------------------
+            # Assign shipments
+            # ----------------------------------
+            placeholders = ",".join(["?"] * len(shipment_ids))
+
+            query = f"""
+                UPDATE shipments
+                SET
+                    challan_number = ?,
+                    status = 'in-transit',
+                    driver_id = ?,
+                    vehicle_id = ?,
+                    route_id = ?
+                WHERE id IN ({placeholders})
+            """
+
+            params = [
+                challan_no,
+                driver_id,
+                vehicle_id,
+                route_id
+            ] + shipment_ids
+
+            cursor.execute(query, params)
+
+            updated_count = cursor.rowcount
+
+            if updated_count <= 0:
+                self.connection.rollback()
+                return None, "No shipments were updated"
+
             self.connection.commit()
             cursor.close()
+
+            print(
+                f"✅ Challan {challan_no} created. "
+                f"Shipments updated: {updated_count}"
+            )
+
             return challan_id, None
-            
+
         except Exception as e:
             print(f"❌ Error in create_challan_transactional: {e}")
+
+            import traceback
+            traceback.print_exc()
+
             if self.connection:
                 self.connection.rollback()
+
             return None, str(e)
 
     def get_challan_with_details(self, challan_no):
@@ -2070,9 +2640,9 @@ class Database:
             cursor = self.get_cursor()
             if not cursor:
                 return None
-            
+
             cursor.execute("""
-                SELECT 
+                SELECT
                     c.*,
                     d.full_name as driver_name,
                     d.phone as driver_phone,
@@ -2083,43 +2653,43 @@ class Database:
                 LEFT JOIN vehicles v ON c.vehicle_id = v.id
                 WHERE c.challan_no = ?
             """, (challan_no,))
-            
+
             columns = [col[0] for col in cursor.description]
             row = cursor.fetchone()
-            
+
             if not row:
                 cursor.close()
                 return None
-            
+
             challan = dict(zip(columns, row))
-            
+
             # Get shipments
             cursor.execute("""
-                SELECT 
+                SELECT
                     id, lr_number, pickup_location, delivery_location, destination,
                     client, goods_desc, weight, weight_type, freight_charge,
                     payment_mode, status
                 FROM shipments
                 WHERE challan_number = ?
             """, (challan_no,))
-            
+
             shipment_columns = [col[0] for col in cursor.description]
             shipment_rows = cursor.fetchall()
             cursor.close()
-            
+
             challan['shipments'] = [dict(zip(shipment_columns, row)) for row in shipment_rows]
-            
-            # Convert serializable values
+
             for key, val in challan.items():
                 if hasattr(val, "isoformat"):
                     challan[key] = str(val)
                 if hasattr(val, "__class__") and val.__class__.__name__ == "Decimal":
                     challan[key] = float(val)
-            
+
             return challan
         except Exception as e:
             print(f"❌ Error in get_challan_with_details: {e}")
             return None
+
 
 # ==========================================
 # CREATE SINGLETON INSTANCE

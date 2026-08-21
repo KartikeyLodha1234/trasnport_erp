@@ -108,16 +108,36 @@ const CreateLR = () => {
   const [cities, setCities] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [drivers, setDrivers] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
+  // Keep the FULL vehicle list separately so we can filter it by driver
+  const [allVehicles, setAllVehicles] = useState([]);
   const [consignorInfo, setConsignorInfo] = useState(null);
   const [consigneeInfo, setConsigneeInfo] = useState(null);
   const [formData, setFormData] = useState(emptyFormData);
+
+  // Derived: vehicles belonging to the currently-selected driver.
+  // If no driver is selected yet, show the full active vehicle list.
+  const vehicles = formData.driver_id
+    ? allVehicles.filter(
+        (v) => String(v.driver_id) === String(formData.driver_id)
+      )
+    : allVehicles;
+
+  // Helper: consistent vehicle display label across dropdown + badges
+  const getVehicleLabel = (v) =>
+    v.license_plate ||
+    v.vehicle_number ||
+    v.vehicle_no ||
+    v.registration_number ||
+    v.registration_no ||
+    v.reg_no ||
+    v.vehicle_id ||
+    "Unnamed Vehicle";
 
   const fetchMasterData = async () => {
     setMastersLoading(true);
     try {
       console.log("🔍 Fetching master data...");
-      
+
       const getMasterList = async (path, listKey) => {
         const response = await fetch(`${API_BASE}${path}`);
         if (!response.ok) throw new Error(`Could not load ${path}`);
@@ -133,12 +153,18 @@ const CreateLR = () => {
       const cData = await getMasterList("/cities/", "cities");
       const dData = await getMasterList("/drivers/", "drivers");
       const vData = await getMasterList("/vehicles/", "vehicles");
+      // ✅ Routes now come from the backend instead of a hardcoded array.
+      // This endpoint returns rate_per_kg / rate_per_ton / minimum_charge /
+      // estimated_days which is exactly what the freight-calculation logic
+      // below needs.
+      const rData = await getMasterList("/shipments/routes", "routes");
 
       console.log("📡 Branches:", bData);
       console.log("📡 Parties:", pData);
       console.log("📡 Cities:", cData);
       console.log("📡 Drivers:", dData);
       console.log("📡 Vehicles:", vData);
+      console.log("📡 Routes:", rData);
 
       setBranches(bData);
       setParties(pData);
@@ -147,18 +173,15 @@ const CreateLR = () => {
           .filter((c) => c.status === "active")
           .map((c) => c.name || c)
       );
-      setDrivers(dData.filter(d => d.status === "active"));
-      setVehicles(vData.filter(v => v.status === "active"));
-
-      // Manual routes
-      const manualRoutes = [
-        { id: 1, pickup_location: "Bhilwara", destination: "jaipur", via: "ajmer", stoppage: "xxv", status: "active", rate_per_kg: 15, rate_per_ton: 15000, minimum_charge: 500 },
-        { id: 2, pickup_location: "jaipur", destination: "Bhilwara", via: "xcvx", stoppage: "cvzcv", status: "active", rate_per_kg: 15, rate_per_ton: 15000, minimum_charge: 500 },
-        { id: 3, pickup_location: "Mumbai", destination: "Delhi", via: "Ahmedabad", stoppage: "stop1", status: "active", rate_per_kg: 20, rate_per_ton: 20000, minimum_charge: 1000 },
-        { id: 4, pickup_location: "Delhi", destination: "Mumbai", via: "Jaipur", stoppage: "stop2", status: "active", rate_per_kg: 20, rate_per_ton: 20000, minimum_charge: 1000 },
-      ];
-      setRoutes(manualRoutes);
-      
+      // ✅ Loosened status filter: also keep drivers whose status is
+      // missing/null (older rows added before the status column existed).
+      setDrivers(
+        dData.filter((d) => !d.status || d.status.toLowerCase() === "active")
+      );
+      setAllVehicles(
+        vData.filter((v) => !v.status || v.status.toLowerCase() === "active")
+      );
+      setRoutes(rData);
     } catch (err) {
       console.error("❌ Error fetching master data:", err);
       setAlert({
@@ -177,9 +200,13 @@ const CreateLR = () => {
     const d = String(now.getDate()).padStart(2, "0");
     setFormData((prev) => ({
       ...prev,
-      lr_number: `LR${y}${m}${d}${String(Math.floor(Math.random() * 9000) + 1000)}`,
+      lr_number: `LR${y}${m}${d}${String(
+        Math.floor(Math.random() * 9000) + 1000
+      )}`,
       booking_date: now.toISOString().split("T")[0],
-      invoice_no: `INV${y}${m}${d}${String(Math.floor(Math.random() * 900) + 100)}`,
+      invoice_no: `INV${y}${m}${d}${String(
+        Math.floor(Math.random() * 900) + 100
+      )}`,
       eway_bill: String(Math.floor(Math.random() * 9000000000) + 1000000000),
     }));
   };
@@ -248,12 +275,13 @@ const CreateLR = () => {
   useEffect(() => {
     if (!formData.route_id) return;
     const route = routes.find(
-      (r) => String(r.id) === String(formData.route_id),
+      (r) => String(r.id) === String(formData.route_id)
     );
     if (!route) return;
 
     const rawWeight = parseFloat(formData.weight) || 0;
-    const weightInKg = formData.weight_type === "ton" ? rawWeight * 1000 : rawWeight;
+    const weightInKg =
+      formData.weight_type === "ton" ? rawWeight * 1000 : rawWeight;
     if (!weightInKg) return;
 
     // Calculate freight based on weight
@@ -281,72 +309,100 @@ const CreateLR = () => {
 
   // Auto-fill driver info when driver is selected
   useEffect(() => {
-  if (formData.driver_id) {
-    const driver = drivers.find(
-      (d) => String(d.id) === String(formData.driver_id)
-    );
+    if (formData.driver_id) {
+      const driver = drivers.find(
+        (d) => String(d.id) === String(formData.driver_id)
+      );
 
-    if (driver) {
+      if (driver) {
+        setFormData((prev) => ({
+          ...prev,
+
+          driver_name:
+            driver.name ||
+            driver.driver_name ||
+            driver.full_name ||
+            driver.driverName ||
+            "",
+
+          driver_phone:
+            driver.phone ||
+            driver.phone_number ||
+            driver.mobile ||
+            driver.mobile_number ||
+            "",
+        }));
+      }
+    } else {
       setFormData((prev) => ({
         ...prev,
-
-        driver_name:
-          driver.name ||
-          driver.driver_name ||
-          driver.full_name ||
-          driver.driverName ||
-          "",
-
-        driver_phone:
-          driver.phone ||
-          driver.phone_number ||
-          driver.mobile ||
-          driver.mobile_number ||
-          "",
+        driver_name: "",
+        driver_phone: "",
       }));
     }
-  } else {
-    setFormData((prev) => ({
-      ...prev,
-      driver_name: "",
-      driver_phone: "",
-    }));
-  }
-}, [formData.driver_id, drivers]);
+  }, [formData.driver_id, drivers]);
 
-  // Auto-fill vehicle info when vehicle is selected
+  // ✅ When the driver changes:
+  //   - If exactly ONE vehicle belongs to the new driver, auto-select it.
+  //   - If the previously-selected vehicle no longer belongs to the new
+  //     driver, clear it so the form never submits a mismatched pair.
   useEffect(() => {
-  if (formData.vehicle_id) {
-    const vehicle = vehicles.find(
+    if (!formData.driver_id) return;
+
+    const driverVehicles = allVehicles.filter(
+      (v) => String(v.driver_id) === String(formData.driver_id)
+    );
+
+    const currentStillValid = driverVehicles.some(
       (v) => String(v.id) === String(formData.vehicle_id)
     );
 
-    if (vehicle) {
+    if (currentStillValid) {
+      // Already a valid vehicle selected for this driver, nothing to do.
+      return;
+    }
+
+    if (driverVehicles.length === 1) {
+      const v = driverVehicles[0];
       setFormData((prev) => ({
         ...prev,
-
-        vehicle_number:
-          vehicle.vehicle_number ||
-          vehicle.vehicle_no ||
-          vehicle.registration_number ||
-          vehicle.registration_no ||
-          vehicle.reg_no ||
-          "",
-
-        vehicle_type:
-          vehicle.vehicle_type ||
-          vehicle.type ||
-          "",
+        vehicle_id: String(v.id),
+        vehicle_number: getVehicleLabel(v),
+        vehicle_type: v.vehicle_type || v.type || "",
+      }));
+    } else if (formData.vehicle_id) {
+      setFormData((prev) => ({
+        ...prev,
+        vehicle_id: "",
+        vehicle_number: "",
+        vehicle_type: "",
       }));
     }
-  } else {
-    setFormData((prev) => ({
-      ...prev,
-      vehicle_number: "",
-      vehicle_type: "",
-    }));
-  }
-}, [formData.vehicle_id, vehicles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.driver_id, allVehicles]);
+
+  // Auto-fill vehicle info when vehicle is selected
+  useEffect(() => {
+    if (formData.vehicle_id) {
+      const vehicle = allVehicles.find(
+        (v) => String(v.id) === String(formData.vehicle_id)
+      );
+
+      if (vehicle) {
+        setFormData((prev) => ({
+          ...prev,
+          vehicle_number: getVehicleLabel(vehicle),
+          vehicle_type: vehicle.vehicle_type || vehicle.type || "",
+        }));
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        vehicle_number: "",
+        vehicle_type: "",
+      }));
+    }
+  }, [formData.vehicle_id, allVehicles]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -394,16 +450,19 @@ const CreateLR = () => {
         per_kg_rate: route.rate_per_kg || "",
         per_ton_rate: route.rate_per_ton || "",
         minimum_charge: route.minimum_charge || "",
+        freight_charge: "", // Reset freight charge to recalculate based on weight
       }));
 
       // Calculate freight if weight exists
       if (formData.weight) {
         const rawWeight = parseFloat(formData.weight) || 0;
-        const weightInKg = formData.weight_type === "ton" ? rawWeight * 1000 : rawWeight;
+        const weightInKg =
+          formData.weight_type === "ton" ? rawWeight * 1000 : rawWeight;
         if (weightInKg) {
           let freight = 0;
           if (formData.weight_type === "ton") {
-            freight = (weightInKg / 1000) * (parseFloat(route.rate_per_ton) || 0);
+            freight =
+              (weightInKg / 1000) * (parseFloat(route.rate_per_ton) || 0);
           } else {
             freight = weightInKg * (parseFloat(route.rate_per_kg) || 0);
           }
@@ -414,11 +473,22 @@ const CreateLR = () => {
           setFormData((prev) => ({
             ...prev,
             freight_charge: freight.toFixed(2),
+            price: freight,
+            per_kg_rate: route.rate_per_kg || "",
+            per_ton_rate: route.rate_per_ton || "",
+            minimum_charge: route.minimum_charge || "",
           }));
         }
       }
     } else {
-      setFormData((prev) => ({ ...prev, route_id: "", eta: "", per_kg_rate: "", per_ton_rate: "", minimum_charge: "" }));
+      setFormData((prev) => ({
+        ...prev,
+        route_id: "",
+        eta: "",
+        per_kg_rate: "",
+        per_ton_rate: "",
+        minimum_charge: "",
+      }));
     }
   };
 
@@ -503,7 +573,7 @@ const CreateLR = () => {
 
         setTimeout(() => {
           navigate("/shipments", {
-            state: { refresh: true, newLR: formData.lr_number }
+            state: { refresh: true, newLR: formData.lr_number },
           });
         }, 1500);
       } else {
@@ -597,9 +667,14 @@ const CreateLR = () => {
                       {mastersLoading ? "Loading branches…" : "Select Branch"}
                     </option>
                     {branches.map((b, index) => (
-                      <option key={b.id || b.branch_id || index} value={b.id || b.branch_id || ""}>
-                        {b.name || b.branch_name || "Unnamed Branch"}
-                        {(b.city || b.location) ? ` — ${b.city || b.location}` : ""}
+                      <option
+                        key={b.id || b.branch_id || index}
+                        value={b.id || b.branch_id || ""}
+                      >
+                        {b.name || b.branch_name || "Estimated Branch"}
+                        {b.city || b.location
+                          ? ` — ${b.city || b.location}`
+                          : ""}
                       </option>
                     ))}
                   </select>
@@ -620,7 +695,7 @@ const CreateLR = () => {
                       disabled={mastersLoading}
                     >
                       <option value="">-- Select Driver --</option>
-                    {drivers.map((d) => (
+                      {drivers.map((d) => (
                         <option key={d.id} value={d.id}>
                           {d.name ||
                             d.driver_name ||
@@ -636,15 +711,26 @@ const CreateLR = () => {
                   </Field>
                   {formData.driver_name && (
                     <div className="mt-2 p-2 bg-green-50 rounded-lg border border-green-100">
-                      <p className="text-xs font-semibold text-green-800">Driver: {formData.driver_name}</p>
+                      <p className="text-xs font-semibold text-green-800">
+                        Driver: {formData.driver_name}
+                      </p>
                       {formData.driver_phone && (
-                        <p className="text-xs text-green-600">📞 {formData.driver_phone}</p>
+                        <p className="text-xs text-green-600">
+                          📞 {formData.driver_phone}
+                        </p>
                       )}
                     </div>
                   )}
                 </div>
                 <div>
-                  <Field label="Select Vehicle">
+                  <Field
+                    label="Select Vehicle"
+                    hint={
+                      formData.driver_id
+                        ? "Showing vehicles assigned to the selected driver"
+                        : "Select a driver to narrow this list, or pick any vehicle"
+                    }
+                  >
                     <select
                       name="vehicle_id"
                       className={selectCls}
@@ -652,28 +738,37 @@ const CreateLR = () => {
                       onChange={handleChange}
                       disabled={mastersLoading}
                     >
-                      <option value="">-- Select Vehicle --</option>
+                      <option value="">
+                        {!formData.driver_id
+                          ? "-- Select Vehicle --"
+                          : vehicles.length
+                          ? "-- Select Vehicle --"
+                          : "-- No vehicles for this driver --"}
+                      </option>
                       {vehicles.map((v) => (
-  <option key={v.id} value={v.id}>
-    {v.vehicle_number ||
-      v.vehicle_no ||
-      v.registration_number ||
-      v.registration_no ||
-      v.reg_no ||
-      v.vehicleName ||
-      "Unnamed Vehicle"}
-    {v.vehicle_type || v.type
-      ? ` · ${v.vehicle_type || v.type}`
-      : ""}
-  </option>
-))}
+                        <option key={v.id} value={v.id}>
+                          {getVehicleLabel(v)}
+                          {v.vehicle_type || v.type
+                            ? ` · ${v.vehicle_type || v.type}`
+                            : ""}
+                        </option>
+                      ))}
                     </select>
                   </Field>
+                  {formData.driver_id && vehicles.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1.5">
+                      ⚠️ Iss driver ko koi vehicle assign nahi hai.
+                    </p>
+                  )}
                   {formData.vehicle_number && (
                     <div className="mt-2 p-2 bg-purple-50 rounded-lg border border-purple-100">
-                      <p className="text-xs font-semibold text-purple-800">Vehicle: {formData.vehicle_number}</p>
+                      <p className="text-xs font-semibold text-purple-800">
+                        Vehicle: {formData.vehicle_number}
+                      </p>
                       {formData.vehicle_type && (
-                        <p className="text-xs text-purple-600">Type: {formData.vehicle_type}</p>
+                        <p className="text-xs text-purple-600">
+                          Type: {formData.vehicle_type}
+                        </p>
                       )}
                     </div>
                   )}
@@ -708,7 +803,8 @@ const CreateLR = () => {
                 </select>
                 {!mastersLoading && routes.length === 0 && (
                   <p className="text-xs text-amber-600 mt-1.5">
-                    ⚠️ No active routes found. Add routes in Masters → Routes first.
+                    ⚠️ No active routes found. Add routes in Masters → Routes
+                    first.
                   </p>
                 )}
               </Field>
@@ -748,7 +844,42 @@ const CreateLR = () => {
                   </span>
                 </p>
               )}
+              {formData.route_id && (
+                <div className="mt-3 p-3 bg-green-50 rounded-lg border border-green-100">
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs font-semibold text-green-700">
+                      💰 Route Price
+                    </span>
 
+                    <span className="text-base font-bold text-green-800">
+                      ₹{parseFloat(formData.freight_charge || 0).toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3 mt-2 pt-2 border-t border-green-100">
+                    <div>
+                      <p className="text-[11px] text-gray-500">Per Kg</p>
+                      <p className="text-xs font-semibold text-gray-700">
+                        ₹{formData.per_kg_rate || "0"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] text-gray-500">Per Ton</p>
+                      <p className="text-xs font-semibold text-gray-700">
+                        ₹{formData.per_ton_rate || "0"}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-[11px] text-gray-500">Minimum</p>
+                      <p className="text-xs font-semibold text-gray-700">
+                        ₹{formData.minimum_charge || "0"}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <datalist id="city_list">
                 {cities.map((c, i) => (
                   <option key={i} value={c} />
@@ -921,7 +1052,9 @@ const CreateLR = () => {
               <div className="flex flex-col gap-3">
                 {/* Rate Information */}
                 <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
-                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">Rate Information</p>
+                  <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-2">
+                    Rate Information
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <p className="text-xs text-gray-500">Per Kg Rate</p>
@@ -1102,7 +1235,9 @@ const CreateLR = () => {
                       >
                         <span className="text-gray-500">{label}</span>
                         <span
-                          className={val < 0 ? "text-red-500" : "text-gray-700"}
+                          className={
+                            val < 0 ? "text-red-500" : "text-gray-700"
+                          }
                         >
                           {val < 0 ? "-" : ""}₹{Math.abs(val).toFixed(2)}
                         </span>

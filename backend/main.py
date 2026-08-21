@@ -13,6 +13,7 @@ from routes.route_routes import router as route_router
 from routes.branch_routes import router as branch_router
 from routes.party_routes import router as party_router
 from routes.city_routes import router as city_router
+from routes.expenses_routes import router as expenses_router
 from routes import challan_routes
 
 # Import database
@@ -47,7 +48,11 @@ app.include_router(route_router, prefix="/api/routes", tags=["Routes"])  # ✅ U
 app.include_router(branch_router, prefix="/api/branches", tags=["Branches"])
 app.include_router(party_router, prefix="/api/parties", tags=["Parties"])
 app.include_router(city_router, prefix="/api/cities", tags=["Cities"])
-
+app.include_router(
+    expenses_router,
+    prefix="/api/expenses",
+    tags=["Expenses"]
+)
 @app.get("/")
 def home():
     return {

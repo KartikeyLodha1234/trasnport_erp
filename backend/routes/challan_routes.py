@@ -13,6 +13,7 @@ def create_challan(data: dict):
         advance_paid = float(data.get("advance_paid", 0.0))
         driver_id = data.get("driver_id")
         vehicle_id = data.get("vehicle_id")
+        route_id = data.get("route_id")
         
         # ✅ Validation
         if not challan_no:
@@ -27,6 +28,8 @@ def create_challan(data: dict):
         if not vehicle_id:
             raise HTTPException(status_code=400, detail="Vehicle is required")
         
+        if not route_id:
+            raise HTTPException(status_code=400, detail="Route is required")
         logger.info(f"📋 Creating challan {challan_no} with {len(shipment_ids)} LRs, advance: {advance_paid}")
         
         # ✅ Create challan in database

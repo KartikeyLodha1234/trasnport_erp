@@ -26,6 +26,17 @@ def generate_lr_number():
     d = datetime.now()
     return f"LR{d.year}{str(d.month).zfill(2)}{str(d.day).zfill(2)}{str(random.randint(0,9999)).zfill(4)}"
 
+# ==========================================
+# NOTE ON ROUTE ORDERING (FastAPI/Starlette)
+# ==========================================
+# FastAPI matches routes in the order they are declared. Any STATIC path
+# (e.g. "/routes", "/test-locations") on this same prefix MUST be declared
+# BEFORE the DYNAMIC "/{shipment_id}" route below — otherwise "routes" or
+# "test-locations" gets captured as shipment_id, fails int conversion, and
+# FastAPI returns 422 Unprocessable Content. That's exactly what was
+# happening before this fix.
+# ==========================================
+
 @router.get("")
 def get_shipments_no_slash():
     return get_shipments()
@@ -42,6 +53,96 @@ def get_shipments():
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+# ── STATIC ROUTES: must stay above "/{shipment_id}" ─────────────────────────
+
+@router.get("/routes")
+def get_routes():
+    try:
+        cursor = db.get_cursor()
+
+        cursor.execute("""
+            SELECT
+                id,
+                pickup_location,
+                destination,
+                via,
+                stoppage,
+                status,
+                rate_per_kg,
+                rate_per_ton,
+                minimum_charge,
+                estimated_days
+            FROM routes
+            WHERE status = 'active'
+            ORDER BY id DESC
+        """)
+
+        rows = cursor.fetchall()
+        cursor.close()
+
+        routes = []
+
+        for row in rows:
+            routes.append({
+                "id": row[0],
+                "pickup_location": row[1],
+                "destination": row[2],
+                "via": row[3],
+                "stoppage": row[4],
+                "status": row[5],
+                "rate_per_kg": float(row[6] or 0),
+                "rate_per_ton": float(row[7] or 0),
+                "minimum_charge": float(row[8] or 0),
+                "estimated_days": row[9] or 1,
+            })
+
+        return {
+            "success": True,
+            "data": routes
+        }
+
+    except Exception as e:
+        print(f"❌ Error fetching routes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/test-locations")
+def test_locations():
+    """Test endpoint to check location fields"""
+    try:
+        cursor = db.get_cursor()
+        cursor.execute("""
+            SELECT id, lr_number, pickup_location, delivery_location, destination, 
+                   consignor_id, consignee_id, client
+            FROM shipments
+            ORDER BY id DESC
+        """)
+        rows = cursor.fetchall()
+        cursor.close()
+        
+        result = []
+        for row in rows:
+            result.append({
+                'id': row[0],
+                'lr_number': row[1],
+                'pickup_location': row[2],
+                'delivery_location': row[3],
+                'destination': row[4],
+                'consignor_id': row[5],
+                'consignee_id': row[6],
+                'client': row[7]
+            })
+        
+        return {
+            'success': True,
+            'count': len(result),
+            'data': result
+        }
+    except Exception as e:
+        return {'error': str(e)}
+
+# ── DYNAMIC ROUTES: must come after all static paths above ──────────────────
 
 @router.get("/{shipment_id}")
 def get_shipment(shipment_id: int):
@@ -306,6 +407,8 @@ def download_challan_pdf(shipment_id: int):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+# ── POST ROUTES (no ordering conflict, safe anywhere) ────────────────────────
+
 @router.post("")
 def create_shipment_no_slash(data: dict):
     return create_shipment(data)
@@ -395,38 +498,42 @@ def create_shipment(data: dict):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/test-locations")
-def test_locations():
-    """Test endpoint to check location fields"""
+@router.put("/{shipment_id}")
+def update_shipment(shipment_id: int, data: dict):
     try:
-        cursor = db.get_cursor()
-        cursor.execute("""
-            SELECT id, lr_number, pickup_location, delivery_location, destination, 
-                   consignor_id, consignee_id, client
-            FROM shipments
-            ORDER BY id DESC
-        """)
-        rows = cursor.fetchall()
-        cursor.close()
-        
-        result = []
-        for row in rows:
-            result.append({
-                'id': row[0],
-                'lr_number': row[1],
-                'pickup_location': row[2],
-                'delivery_location': row[3],
-                'destination': row[4],
-                'consignor_id': row[5],
-                'consignee_id': row[6],
-                'client': row[7]
-            })
-        
-        return {
-            'success': True,
-            'count': len(result),
-            'data': result
-        }
+        existing = db.get_shipment_by_id(shipment_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Shipment not found")
+
+        success = db.update_shipment(shipment_id, data)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to update shipment")
+
+        updated = db.get_shipment_by_id(shipment_id)
+        return {"success": True, "message": "Shipment updated successfully", "data": updated}
+    except HTTPException:
+        raise
     except Exception as e:
-        return {'error': str(e)}
+        print(f"❌ Error updating shipment: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{shipment_id}")
+def delete_shipment(shipment_id: int):
+    try:
+        existing = db.get_shipment_by_id(shipment_id)
+        if not existing:
+            raise HTTPException(status_code=404, detail="Shipment not found")
+
+        success = db.delete_shipment(shipment_id)
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to delete shipment")
+
+        return {"success": True, "message": "Shipment deleted successfully"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error deleting shipment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

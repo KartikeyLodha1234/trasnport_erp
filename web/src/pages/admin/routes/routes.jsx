@@ -52,7 +52,7 @@ async function createRouteApi(formData) {
 
 async function updateRouteApi(routeId, formData) {
   const payload = {
-    pickup_location: formData.pickup,
+    pickup_location: formData.pickup,  // ✅ frontend pickup → backend pickup_location
     destination: formData.destination,
     via: formData.via || "",
     stoppage: formData.stoppage || "",
@@ -156,7 +156,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           </label>
           <select
             name="pickup"
-            value={formData.pickup}
+            value={formData.pickup || ""}
             onChange={handleInputChange}
             disabled={disabled}
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -173,7 +173,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           </label>
           <select
             name="destination"
-            value={formData.destination}
+            value={formData.destination || ""}
             onChange={handleInputChange}
             disabled={disabled}
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -192,7 +192,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           <input
             type="text"
             name="via"
-            value={formData.via}
+            value={formData.via || ""}
             onChange={handleInputChange}
             disabled={disabled}
             placeholder="e.g. Ajmer, Udaipur"
@@ -204,7 +204,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           <input
             type="text"
             name="stoppage"
-            value={formData.stoppage}
+            value={formData.stoppage || ""}
             onChange={handleInputChange}
             disabled={disabled}
             placeholder="e.g. Ahmedabad"
@@ -219,7 +219,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           <input
             type="number"
             name="distance_km"
-            value={formData.distance_km}
+            value={formData.distance_km || ""}
             onChange={handleInputChange}
             disabled={disabled}
             placeholder="e.g. 1400"
@@ -231,7 +231,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           <input
             type="number"
             name="rate_per_kg"
-            value={formData.rate_per_kg}
+            value={formData.rate_per_kg || ""}
             onChange={handleInputChange}
             disabled={disabled}
             placeholder="e.g. 45"
@@ -243,7 +243,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           <input
             type="number"
             name="price"
-            value={formData.price}
+            value={formData.price || ""}
             onChange={handleInputChange}
             disabled={disabled}
             placeholder="e.g. 5000"
@@ -255,7 +255,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           <input
             type="number"
             name="estimated_days"
-            value={formData.estimated_days}
+            value={formData.estimated_days || ""}
             onChange={handleInputChange}
             disabled={disabled}
             placeholder="e.g. 3"
@@ -269,7 +269,7 @@ const RouteForm = memo(({ formData, onChange, cities, showStatus = false, disabl
           <label className="mb-2 block text-sm font-medium text-gray-700">Status</label>
           <select
             name="status"
-            value={formData.status}
+            value={formData.status || "active"}
             onChange={handleInputChange}
             disabled={disabled}
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
@@ -421,16 +421,13 @@ export default function Routes() {
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ type: "", message: "" });
 
-  // Modal states
   const [showCreate, setShowCreate] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [showView, setShowView] = useState(false);
   const [selectedRoute, setSelectedRoute] = useState(null);
 
-  // Form state
   const [form, setForm] = useState(INITIAL_FORM);
 
-  // Search & filter
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
@@ -469,15 +466,16 @@ export default function Routes() {
       setLoading(false);
     }
   }, []);
-const loadCities = useCallback(async () => {
-  try {
-    const data = await fetchCitiesApi();
-    setCities(data);
-  } catch (err) {
-    setAlert({ type: "error", message: "Failed to load cities." });
-    console.error(err);
-  }
-}, []);
+
+  const loadCities = useCallback(async () => {
+    try {
+      const data = await fetchCitiesApi();
+      setCities(data);
+    } catch (err) {
+      setAlert({ type: "error", message: "Failed to load cities." });
+      console.error(err);
+    }
+  }, []);
 
   useEffect(() => {
     loadRoutes();
@@ -504,19 +502,35 @@ const loadCities = useCallback(async () => {
     clearForm();
   }, [clearForm]);
 
+  // ✅ FIXED: Edit handler - properly maps route data to form
   const openEdit = useCallback((route) => {
+    console.log("✏️ Opening edit for route:", route);
+    
     setSelectedRoute(route);
     setForm({
-      pickup: route.pickup,
-      destination: route.destination,
+      pickup: route.pickup || "",
+      destination: route.destination || "",
       via: route.via || "",
       stoppage: route.stoppage || "",
-      status: route.status,
+      status: route.status || "active",
       distance_km: route.distance_km ?? "",
       rate_per_kg: route.rate_per_kg ?? "",
       price: route.price ?? "",
       estimated_days: route.estimated_days ?? "",
     });
+    
+    console.log("📝 Form state after mapping:", {
+      pickup: route.pickup,
+      destination: route.destination,
+      via: route.via,
+      stoppage: route.stoppage,
+      status: route.status,
+      distance_km: route.distance_km,
+      rate_per_kg: route.rate_per_kg,
+      price: route.price,
+      estimated_days: route.estimated_days
+    });
+    
     setShowEdit(true);
   }, []);
 
@@ -552,28 +566,23 @@ const loadCities = useCallback(async () => {
       setAlert({ type: "error", message: err.response?.data?.detail || "Failed to create route." });
     }
   }, [form, closeCreate, loadRoutes]);
-const fetchCities = async () => {
-    try {
-        const res = await fetch("http://localhost:8000/api/cities/");
-        const data = await res.json();
-        console.log("Cities response:", data);
-        if (data.success && data.data) {
-            setCities(data.data);
-        } else {
-            setCities([]);
-        }
-    } catch (err) {
-        console.error("Error fetching cities:", err);
-        setCities([]);
-    }
-};
+
+  // ✅ FIXED: Update handler
   const handleEdit = useCallback(async () => {
-    if (!selectedRoute) return;
+    if (!selectedRoute) {
+      console.error("❌ No route selected for editing");
+      return;
+    }
+    
+    console.log("🔄 Attempting to update route:", selectedRoute.id);
+    console.log("📋 Current form data:", form);
+    
     const errors = validateRoute(form);
     if (errors.length > 0) {
       setAlert({ type: "error", message: errors.join(" ") });
       return;
     }
+    
     try {
       await updateRouteApi(selectedRoute.id, form);
       setAlert({ type: "success", message: "Route updated successfully!" });
@@ -581,6 +590,7 @@ const fetchCities = async () => {
       loadRoutes();
     } catch (err) {
       console.error("❌ Update error:", err);
+      console.error("❌ Error response:", err.response?.data);
       setAlert({ type: "error", message: err.response?.data?.detail || "Failed to update route." });
     }
   }, [form, selectedRoute, closeEdit, loadRoutes]);
@@ -620,14 +630,12 @@ const fetchCities = async () => {
   // ====================== Render ======================
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-8">
-      {/* Alert Banner */}
       <AlertBanner
         type={alert.type}
         message={alert.message}
         onClose={() => setAlert({ type: "", message: "" })}
       />
 
-      {/* Header */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-800">Routes</h1>
@@ -641,10 +649,8 @@ const fetchCities = async () => {
         </button>
       </div>
 
-      {/* Stats Cards */}
       <StatsCards total={stats.total} active={stats.active} inactive={stats.inactive} />
 
-      {/* Search & Filter */}
       <div className="mb-6 flex flex-col gap-4 sm:flex-row">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
@@ -667,7 +673,6 @@ const fetchCities = async () => {
         </select>
       </div>
 
-      {/* Route Table */}
       <RouteTable
         routes={filteredRoutes}
         loading={loading}

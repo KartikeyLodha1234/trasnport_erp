@@ -67,6 +67,7 @@ async def create_vehicle_no_slash(
     puc_certificate_number: Optional[str] = Form(None),
     puc_expiry_date: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
+    driver_id: Optional[str] = Form(None),
     pucFile: Optional[UploadFile] = File(None),
 ):
     return await create_vehicle(
@@ -77,6 +78,7 @@ async def create_vehicle_no_slash(
         puc_certificate_number=puc_certificate_number,
         puc_expiry_date=puc_expiry_date,
         notes=notes,
+        driver_id=driver_id,
         pucFile=pucFile,
     )
 
@@ -90,7 +92,7 @@ async def create_vehicle(
     puc_certificate_number: Optional[str] = Form(None),
     puc_expiry_date: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
-    driver_id: Optional[str] = Form(None),  # ✅ ADD THIS LINE
+    driver_id: Optional[str] = Form(None),  # ✅ This is already here
     pucFile: Optional[UploadFile] = File(None),
 ):
     try:
@@ -103,9 +105,21 @@ async def create_vehicle(
         print(f"  puc_certificate_number: {puc_certificate_number}")
         print(f"  puc_expiry_date: {puc_expiry_date}")
         print(f"  notes: {notes}")
+        print(f"  driver_id: {driver_id}")  # ✅ Add this to debug
         print(f"  pucFile: {pucFile.filename if pucFile else None}")
         print("=" * 50)
         
+        # ✅ Parse driver_id - convert empty string to None
+        parsed_driver_id = None
+        if driver_id:
+            parsed_driver_id = int(driver_id) if driver_id.isdigit() else None
+            if parsed_driver_id:
+                driver = db.get_driver_by_id(parsed_driver_id)
+                if not driver:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"Driver with ID {parsed_driver_id} not found"
+                    )
         vehicle_data = {
             "type": type,
             "company_name": company_name,
@@ -114,14 +128,10 @@ async def create_vehicle(
             "puc_certificate_number": puc_certificate_number,
             "puc_expiry_date": puc_expiry_date,
             "notes": notes,
+            "driver_id": parsed_driver_id,  # ✅ Add driver_id to vehicle_data
         }
 
         print(f"🔍 Calling db.create_vehicle with: {vehicle_data}")
-        
-        # Check if db.create_vehicle exists
-        if not hasattr(db, 'create_vehicle'):
-            print("❌ db.create_vehicle does not exist!")
-            raise HTTPException(status_code=500, detail="create_vehicle method not found in database")
         
         vehicle_id = db.create_vehicle(vehicle_data)
         print(f"🔍 vehicle_id from db: {vehicle_id}")
@@ -151,7 +161,6 @@ async def create_vehicle(
         print(f"❌ Error creating vehicle: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
 @router.put("/{vehicle_id}")
 async def update_vehicle(
     vehicle_id: int,
@@ -163,49 +172,99 @@ async def update_vehicle(
     puc_expiry_date: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
     status: Optional[str] = Form(None),
+    driver_id: Optional[str] = Form(None),
     pucFile: Optional[UploadFile] = File(None),
 ):
     try:
-        if not db.get_vehicle_by_id(vehicle_id):
-            raise HTTPException(status_code=404, detail="Vehicle not found")
+        print("=" * 50)
+        print("🔍 UPDATE VEHICLE")
+        print(f"  Vehicle ID: {vehicle_id}")
+        print(f"  Driver ID received: {driver_id}")
+        print("=" * 50)
+
+        existing_vehicle = db.get_vehicle_by_id(vehicle_id)
+
+        if not existing_vehicle:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Vehicle not found: {vehicle_id}"
+            )
 
         vehicle_data = {}
+
         if type is not None:
             vehicle_data["type"] = type
+
         if company_name is not None:
             vehicle_data["company_name"] = company_name
+
         if license_plate is not None:
             vehicle_data["license_plate"] = license_plate
+
         if year is not None:
             vehicle_data["year"] = year
+
         if puc_certificate_number is not None:
             vehicle_data["puc_certificate_number"] = puc_certificate_number
+
         if puc_expiry_date is not None:
             vehicle_data["puc_expiry_date"] = puc_expiry_date
+
         if notes is not None:
             vehicle_data["notes"] = notes
+
         if status is not None:
             vehicle_data["status"] = status
 
-        if pucFile and allowed_file(pucFile.filename):
+        # Driver
+        if driver_id is not None:
+            print(f"  Processing driver_id: '{driver_id}'")
+            if driver_id.strip() in ("", "null", "undefined"):
+                vehicle_data["driver_id"] = None
+                print("  Setting driver_id to None")
+            else:
+                try:
+                    vehicle_data["driver_id"] = int(driver_id)
+                    print(f"  Setting driver_id to: {vehicle_data['driver_id']}")
+                except ValueError:
+                    print(f"  ❌ Invalid driver_id: {driver_id}")
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Invalid driver_id"
+                    )
+
+        # PUC file
+        if pucFile and pucFile.filename and allowed_file(pucFile.filename):
             file_path = save_file(pucFile, vehicle_id, "puc")
+
             if file_path:
-                vehicle_data["upload_puc_document_copy_file_path"] = file_path
+                vehicle_data[
+                    "upload_puc_document_copy_file_path"
+                ] = file_path
+
+        print("🔍 Update data:", vehicle_data)
 
         if vehicle_data:
             db.update_vehicle(vehicle_id, vehicle_data)
 
+        updated_vehicle = db.get_vehicle_by_id(vehicle_id)
+
         return {
             "success": True,
-            "message": "Vehicle updated",
-            "data": db.get_vehicle_by_id(vehicle_id),
+            "message": "Vehicle updated successfully",
+            "data": updated_vehicle,
         }
+
     except HTTPException:
         raise
+
     except Exception as e:
         print(f"❌ Error updating vehicle: {e}")
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
 @router.delete("/{vehicle_id}")
@@ -222,3 +281,14 @@ def delete_vehicle(vehicle_id: int):
         print(f"❌ Error deleting vehicle: {e}")
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/test/{vehicle_id}")
+def test_vehicle(vehicle_id: int):
+    try:
+        vehicle = db.get_vehicle_by_id(vehicle_id)
+        if vehicle:
+            print("🔍 Vehicle data:", vehicle)  # Debug
+            return {"exists": True, "vehicle": vehicle}
+        else:
+            return {"exists": False, "message": f"Vehicle with ID {vehicle_id} not found"}
+    except Exception as e:
+        return {"error": str(e)}

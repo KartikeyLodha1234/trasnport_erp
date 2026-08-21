@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
-import "jspdf-autotable";
+import autoTable from "jspdf-autotable";
 import { useNavigate, useLocation } from "react-router-dom";
 
 const API_BASE = "http://localhost:8000/api";
@@ -22,11 +22,21 @@ const csvEscape = (value) => {
   return str;
 };
 
-export default function Shipments() {
+// routes table (per shipments.py get_routes / database.py) has NO
+// `route_name` / `name` column — only pickup_location + destination.
+// Build a display label from what the backend actually returns.
+const routeLabel = (r) => {
+  if (!r) return "N/A";
+  const from = r.pickup_location || "?";
+  const to = r.destination || "?";
+  return `${from} → ${to}`;
+};
+
+export default function AllShipments() {
   const navigate = useNavigate();
   const challanPrintRef = useRef(null);
   const location = useLocation();
-  
+
   // ─── STATE DECLARATIONS ───
   const [shipments, setShipments] = useState([]);
   const [drivers, setDrivers] = useState([]);
@@ -53,8 +63,11 @@ export default function Shipments() {
   const [challanVehicle, setChallanVehicle] = useState("");
   const [challanAdvance, setChallanAdvance] = useState("");
   const [challanRoute, setChallanRoute] = useState("");
+  const [autoFilledVehicle, setAutoFilledVehicle] = useState(false);
+  const [autoFilledRoute, setAutoFilledRoute] = useState(false);
   const [generatedChallan, setGeneratedChallan] = useState(null);
   const [challanSaving, setChallanSaving] = useState(false);
+  const [challanError, setChallanError] = useState("");
 
   const [editFormData, setEditFormData] = useState({
     driver_id: "",
@@ -67,10 +80,11 @@ export default function Shipments() {
   });
 
   // ─── FETCH ALL DATA ───
+  // Uses GET /api/shipments/, /drivers/, /vehicles/, /parties/, /branches/,
+  // /shipments/routes — matches the static-route-first ordering fixed in
+  // shipments.py (so "/routes" never gets swallowed by "/{shipment_id}").
   const fetchAll = async () => {
     try {
-      console.log("🔍 Fetching shipments data...");
-      
       const fetchList = async (path) => {
         const response = await fetch(`${API_BASE}${path}`);
         if (!response.ok) throw new Error(`${path} returned ${response.status}`);
@@ -86,7 +100,7 @@ export default function Shipments() {
         "/vehicles/",
         "/parties/",
         "/branches/",
-        "/routes/",
+        "/shipments/routes",
       ]) {
         try {
           lists.push(await fetchList(path));
@@ -96,9 +110,7 @@ export default function Shipments() {
         }
       }
       const [arr, driversData, vehiclesData, partiesData, branchesData, routesData] = lists;
-      
-      console.log("📦 Routes data received:", routesData);
-      
+
       setShipments(
         [...arr].sort((a, b) =>
           sortOrder === "asc" ? a.id - b.id : b.id - a.id,
@@ -133,10 +145,7 @@ export default function Shipments() {
     const v = getVehicle(id);
     return v ? `${v.vehicle_id} — ${v.license_plate || ""}` : "Not Assigned";
   };
-  const getRouteName = (id) => {
-    const r = getRoute(id);
-    return r?.route_name || r?.name || "N/A";
-  };
+  const getRouteName = (id) => routeLabel(getRoute(id));
 
   const statusMap = {
     delivered: { bg: "#dcfce7", color: "#166534", label: "Delivered" },
@@ -328,7 +337,11 @@ export default function Shipments() {
   const exportPDF = () => {
     const doc = new jsPDF("landscape");
     doc.text("Shipment Report — FleetChain", 140, 15, { align: "center" });
-    doc.autoTable({
+    // ✅ FIX: jspdf-autotable v3.6+ no longer patches jsPDF.prototype.autoTable
+    // when imported this way — it exports a standalone function instead.
+    // Calling doc.autoTable(...) threw "doc.autoTable is not a function".
+    // Call the imported function directly, passing doc as the first arg.
+    autoTable(doc, {
       startY: 25,
       head: [
         [
@@ -371,21 +384,87 @@ export default function Shipments() {
     pendingForChallanIds.length > 0 &&
     pendingForChallanIds.every((id) => selectedLRs.includes(id));
 
+  // Driver → Vehicle → Route auto-fill.
+  // vehicles carry driver_id (see database.py get_all_vehicles / update_vehicle),
+  // and drivers carry route_id (ensure_all_columns in database.py). We only
+  // auto-fill fields that are still empty or were themselves auto-filled, so
+  // we never clobber something the user picked manually.
+  const handleChallanDriverChange = (driverId) => {
+    setChallanDriver(driverId);
+    setChallanError("");
+
+    if (!driverId) {
+      if (autoFilledVehicle) setChallanVehicle("");
+      if (autoFilledRoute) setChallanRoute("");
+      setAutoFilledVehicle(false);
+      setAutoFilledRoute(false);
+      return;
+    }
+
+    const driverIdNum = parseInt(driverId);
+
+    const matchedVehicle = vehicles.find((v) => v.driver_id === driverIdNum);
+    if (matchedVehicle) {
+      setChallanVehicle(String(matchedVehicle.id));
+      setAutoFilledVehicle(true);
+    } else if (autoFilledVehicle) {
+      setChallanVehicle("");
+      setAutoFilledVehicle(false);
+    }
+
+    const driver = getDriver(driverIdNum);
+    if (driver?.route_id) {
+      setChallanRoute(String(driver.route_id));
+      setAutoFilledRoute(true);
+    } else if (autoFilledRoute) {
+      setChallanRoute("");
+      setAutoFilledRoute(false);
+    }
+  };
+
+  const handleChallanVehicleChange = (vehicleId) => {
+    setChallanVehicle(vehicleId);
+    setAutoFilledVehicle(false); // user took over — stop treating it as auto
+  };
+
+  const handleChallanRouteChange = (routeId) => {
+    setChallanRoute(routeId);
+    setAutoFilledRoute(false);
+  };
+
   const generateChallan = async () => {
+    setChallanError("");
+
     if (selectedLRs.length === 0) {
-      alert("Select at least one LR");
+      setChallanError("Select at least one LR");
       return;
     }
     if (!challanDriver) {
-      alert("Select a driver");
+      setChallanError("Select a driver");
       return;
     }
     if (!challanVehicle) {
-      alert("Select a vehicle");
+      setChallanError("Select a vehicle");
       return;
     }
     if (!challanRoute) {
-      alert("Select a route");
+      setChallanError("Select a route");
+      return;
+    }
+
+    // Backend (create_challan_transactional in database.py) requires the
+    // selected vehicle to be assigned to the selected driver, or the whole
+    // call fails with "Selected vehicle is not assigned to this driver".
+    // Catch that here too so the user isn't surprised after LRs are picked.
+    const vehicleForCheck = getVehicle(challanVehicle);
+    if (
+      vehicleForCheck &&
+      vehicleForCheck.driver_id != null &&
+      String(vehicleForCheck.driver_id) !== String(challanDriver)
+    ) {
+      setChallanError(
+        "Selected vehicle is not assigned to this driver — pick a matching vehicle.",
+      );
       return;
     }
 
@@ -419,13 +498,10 @@ export default function Shipments() {
       routeId: challanRoute,
     };
 
-    setGeneratedChallan(challan);
-    setIsCreateChallanOpen(false);
-    setIsChallanOpen(true);
     setChallanSaving(true);
 
     try {
-      await fetch(`${API_BASE}/challans/`, {
+      const res = await fetch(`${API_BASE}/challans/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -436,20 +512,24 @@ export default function Shipments() {
           shipment_ids: selectedLRs,
           advance_paid: advanceValue,
           route_id: challanRoute,
-          total_freight: lrs.reduce(
-            (sum, s) => sum + (parseFloat(s.freight_charge) || 0),
-            0,
-          ),
-          total_weight_kg: lrs.reduce(
-            (sum, s) => sum + toKg(s.weight, s.weight_type),
-            0,
-          ),
+          total_freight: totalFreight,
+          total_weight_kg: totalWeightKg,
         }),
-      })
-        .then((res) => {
-          if (res.ok) fetchAll();
-        })
-        .catch(() => null);
+      });
+
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setChallanError(d.detail || "Failed to create challan on the server.");
+        setChallanSaving(false);
+        return;
+      }
+
+      setGeneratedChallan(challan);
+      setIsCreateChallanOpen(false);
+      setIsChallanOpen(true);
+      fetchAll();
+    } catch {
+      setChallanError("Network error — failed to create challan.");
     } finally {
       setChallanSaving(false);
     }
@@ -497,7 +577,11 @@ export default function Shipments() {
       0,
     );
 
-    doc.autoTable({
+    // ✅ FIX: same jspdf-autotable v3.6+ standalone-function issue as
+    // exportPDF above — use autoTable(doc, {...}) instead of
+    // doc.autoTable({...}). autoTable still stores its result on
+    // doc.lastAutoTable, so the finalY reads below keep working unchanged.
+    autoTable(doc, {
       startY: 48,
       head: [
         [
@@ -606,6 +690,9 @@ export default function Shipments() {
               setChallanVehicle("");
               setChallanAdvance("");
               setChallanRoute("");
+              setAutoFilledVehicle(false);
+              setAutoFilledRoute(false);
+              setChallanError("");
               await fetchAll();
               setIsCreateChallanOpen(true);
             }}
@@ -721,7 +808,7 @@ export default function Shipments() {
           <option value="all">All Routes</option>
           {routes.map((r) => (
             <option key={r.id} value={r.id}>
-              {r.route_name || r.name || `Route #${r.id}`}
+              {routeLabel(r)}
             </option>
           ))}
         </FilterSelect>
@@ -948,8 +1035,7 @@ export default function Shipments() {
                       <option value="">-- Select Route --</option>
                       {routes.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.route_name || r.name || `Route #${r.id}`}
-                          {r.from_location && r.to_location ? ` (${r.from_location} → ${r.to_location})` : ''}
+                          {routeLabel(r)}
                         </option>
                       ))}
                     </select>
@@ -1010,10 +1096,13 @@ export default function Shipments() {
               <CloseBtn onClick={() => setIsCreateChallanOpen(false)}>✕</CloseBtn>
             </ModalHead>
             <ModalBody>
+              {challanError && (
+                <ErrorBanner>⚠️ {challanError}</ErrorBanner>
+              )}
               <FRow style={{ marginBottom: 20 }}>
                 <FGroup>
                   <label>👤 Driver <span style={{ color: "#ef4444" }}>*</span></label>
-                  <select value={challanDriver} onChange={(e) => setChallanDriver(e.target.value)}>
+                  <select value={challanDriver} onChange={(e) => handleChallanDriverChange(e.target.value)}>
                     <option value="">-- Select Driver --</option>
                     {drivers.map((d) => (
                       <option key={d.id} value={d.id}>
@@ -1023,12 +1112,18 @@ export default function Shipments() {
                   </select>
                 </FGroup>
                 <FGroup>
-                  <label>🚛 Vehicle <span style={{ color: "#ef4444" }}>*</span></label>
-                  <select value={challanVehicle} onChange={(e) => setChallanVehicle(e.target.value)}>
+                  <label>
+                    🚛 Vehicle <span style={{ color: "#ef4444" }}>*</span>
+                    {autoFilledVehicle && (
+                      <AutoTag>auto-filled from driver</AutoTag>
+                    )}
+                  </label>
+                  <select value={challanVehicle} onChange={(e) => handleChallanVehicleChange(e.target.value)}>
                     <option value="">-- Select Vehicle --</option>
                     {vehicles.map((v) => (
                       <option key={v.id} value={v.id}>
                         {v.vehicle_id} — {v.license_plate || ""}
+                        {v.driver_id ? "" : " (unassigned)"}
                       </option>
                     ))}
                   </select>
@@ -1049,10 +1144,15 @@ export default function Shipments() {
                   />
                 </FGroup>
                 <FGroup>
-                  <label>📍 Route <span style={{ color: "#ef4444" }}>*</span></label>
+                  <label>
+                    📍 Route <span style={{ color: "#ef4444" }}>*</span>
+                    {autoFilledRoute && (
+                      <AutoTag>auto-filled from driver</AutoTag>
+                    )}
+                  </label>
                   <select
                     value={challanRoute}
-                    onChange={(e) => setChallanRoute(e.target.value)}
+                    onChange={(e) => handleChallanRouteChange(e.target.value)}
                   >
                     <option value="">-- Select Route --</option>
                     {routes.length === 0 ? (
@@ -1060,8 +1160,7 @@ export default function Shipments() {
                     ) : (
                       routes.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.route_name || r.name || `Route #${r.id}`}
-                          {r.from_location && r.to_location ? ` (${r.from_location} → ${r.to_location})` : ''}
+                          {routeLabel(r)}
                         </option>
                       ))
                     )}
@@ -1134,15 +1233,15 @@ export default function Shipments() {
                   <span>Total Weight: {shipments.filter((s) => selectedLRs.includes(s.id)).reduce((sum, s) => sum + toKg(s.weight, s.weight_type), 0).toLocaleString("en-IN")} kg</span>
                   <span style={{ color: "#2563eb" }}>Advance: {inr(parseFloat(challanAdvance) || 0)}</span>
                   <span style={{ color: "#dc2626" }}>Balance: {inr((shipments.filter((s) => selectedLRs.includes(s.id)).reduce((sum, s) => sum + (parseFloat(s.freight_charge) || 0), 0)) - (parseFloat(challanAdvance) || 0))}</span>
-                  <span style={{ color: "#7c3aed" }}>Route: {challanRoute ? routes.find(r => r.id === parseInt(challanRoute))?.route_name || "N/A" : "Not selected"}</span>
+                  <span style={{ color: "#7c3aed" }}>Route: {challanRoute ? routeLabel(getRoute(challanRoute)) : "Not selected"}</span>
                 </SummaryBox>
               )}
             </ModalBody>
             <ModalFoot>
               <Btn onClick={() => setIsCreateChallanOpen(false)}>Cancel</Btn>
-              <Btn 
-                primary 
-                onClick={generateChallan} 
+              <Btn
+                primary
+                onClick={generateChallan}
                 disabled={selectedLRs.length === 0 || challanSaving || !challanRoute}
               >
                 {challanSaving ? "Generating..." : `📋 Generate Challan (${selectedLRs.length} LRs)`}
@@ -1193,8 +1292,8 @@ export default function Shipments() {
                 <InfoCard style={{ gridColumn: "1 / -1" }}>
                   <InfoCardLabel>Route</InfoCardLabel>
                   <InfoCardName>
-                    {generatedChallan.routeId 
-                      ? routes.find(r => r.id === parseInt(generatedChallan.routeId))?.route_name || "N/A"
+                    {generatedChallan.routeId
+                      ? routeLabel(getRoute(generatedChallan.routeId))
                       : "N/A"}
                   </InfoCardName>
                 </InfoCard>
@@ -1281,7 +1380,6 @@ export default function Shipments() {
 }
 
 // ══════════════ STYLED COMPONENTS ══════════════
-// ... (all your existing styled components go here - I've kept them as is)
 const PageWrapper = styled.div`
   max-width: 1400px;
   margin: 0 auto;
@@ -1292,7 +1390,6 @@ const PageWrapper = styled.div`
     -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
     "Helvetica Neue", sans-serif;
 `;
-// ... (rest of your styled components remain unchanged)
 const HeaderSection = styled.div`
   display: flex;
   justify-content: space-between;
@@ -1655,6 +1752,9 @@ const FGroup = styled.div`
     font-weight: 500;
     color: #475569;
     margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
   }
   input,
   select,
@@ -1674,6 +1774,25 @@ const FGroup = styled.div`
     resize: vertical;
     min-height: 80px;
   }
+`;
+const AutoTag = styled.span`
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: #7c3aed;
+  background: #f3e8ff;
+  padding: 2px 7px;
+  border-radius: 9999px;
+`;
+const ErrorBanner = styled.div`
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
 `;
 const InfoBanner = styled.div`
   background: #eef2ff;
